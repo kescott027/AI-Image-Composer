@@ -66,7 +66,7 @@ Backend module to:
 
 ---
 
-### 6. [NOT STARTED] Implement Core CRUD for Projects and Scenes
+### 6. [DONE] Implement Core CRUD for Projects and Scenes
 **Deliverable:**  
 API endpoints:
 - Create/list projects

@@ -6,10 +6,10 @@ from sqlalchemy import Float
 from sqlalchemy import ForeignKey
 from sqlalchemy import Index
 from sqlalchemy import Integer
+from sqlalchemy import JSON
 from sqlalchemy import String
 from sqlalchemy import Text
 from sqlalchemy import func
-from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import mapped_column
 
@@ -52,7 +52,7 @@ class SceneVersion(Base):
         String(64), ForeignKey("scenes.id", ondelete="CASCADE"), nullable=False
     )
     version_number: Mapped[int] = mapped_column(Integer, nullable=False)
-    scene_spec_json: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    scene_spec_json: Mapped[dict] = mapped_column(JSON, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     __table_args__ = (
@@ -73,7 +73,7 @@ class Layer(Base):
     order_index: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     visible: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     locked: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    metadata_json: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    metadata_json: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     __table_args__ = (Index("ix_layers_scene_id", "scene_id"),)
@@ -93,9 +93,9 @@ class Object(Base):
     kind: Mapped[str] = mapped_column(String(64), nullable=False)
     object_prompt: Mapped[str] = mapped_column(Text, default="", nullable=False)
     negative_prompt: Mapped[str] = mapped_column(Text, default="", nullable=False)
-    transform_json: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    transform_json: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="DRAFT")
-    metadata_json: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    metadata_json: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
@@ -143,9 +143,9 @@ class Job(Base):
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="QUEUED")
     priority: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     input_hash: Mapped[str | None] = mapped_column(String(128), nullable=True)
-    input_json: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
-    output_artifact_ids: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
-    logs_json: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+    input_json: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    output_artifact_ids: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    logs_json: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -170,7 +170,7 @@ class Artifact(Base):
     width: Mapped[int] = mapped_column(Integer, nullable=False)
     height: Mapped[int] = mapped_column(Integer, nullable=False)
     format: Mapped[str] = mapped_column(String(16), nullable=False)
-    metadata_json: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    metadata_json: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     __table_args__ = (Index("ix_artifacts_scene_id", "scene_id"),)
