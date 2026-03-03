@@ -19,6 +19,7 @@ import {
   scaleObjectCommand,
   setObjectNegativePromptCommand,
   setObjectAnchoredCommand,
+  setObjectPreferredWireframeCommand,
   setObjectPromptCommand,
   setNegativePromptCommand,
   setOverarchingPromptCommand,
@@ -203,6 +204,43 @@ describe("scene store reducer", () => {
     expect(anchoredHero?.transform?.rotation_deg).toBe(hero.transform?.rotation_deg);
     expect(anchoredHero?.transform?.scale_x).toBe(hero.transform?.scale_x);
     expect(anchoredHero?.transform?.scale_y).toBe(hero.transform?.scale_y);
+  });
+
+  it("stores and clears preferred wireframe artifact selection", () => {
+    let state = createInitialSceneStoreState("scene_store_wireframe_preference");
+    const objectLayer = state.sceneSpec.layers.find((layer) => layer.type === "OBJECT");
+    expect(objectLayer).toBeDefined();
+    if (!objectLayer) {
+      return;
+    }
+
+    state = sceneStoreReducer(state, {
+      type: "EXECUTE_COMMAND",
+      command: addObjectCommand(objectLayer.id, "Candidate Subject"),
+    });
+    const subject = state.sceneSpec.objects.find((object) => object.name === "Candidate Subject");
+    expect(subject).toBeDefined();
+    if (!subject) {
+      return;
+    }
+
+    state = sceneStoreReducer(state, {
+      type: "EXECUTE_COMMAND",
+      command: setObjectPreferredWireframeCommand(subject.id, "art_wireframe_a"),
+    });
+    expect(
+      state.sceneSpec.objects.find((object) => object.id === subject.id)?.metadata
+        ?.preferred_wireframe_artifact_id,
+    ).toBe("art_wireframe_a");
+
+    state = sceneStoreReducer(state, {
+      type: "EXECUTE_COMMAND",
+      command: setObjectPreferredWireframeCommand(subject.id, null),
+    });
+    expect(
+      state.sceneSpec.objects.find((object) => object.id === subject.id)?.metadata
+        ?.preferred_wireframe_artifact_id,
+    ).toBeUndefined();
   });
 
   it("updates per-object prompt fields through commands", () => {

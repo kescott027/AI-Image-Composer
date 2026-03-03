@@ -50,6 +50,7 @@ import {
   setNegativePromptCommand,
   setObjectNegativePromptCommand,
   setObjectAnchoredCommand,
+  setObjectPreferredWireframeCommand,
   setObjectPromptCommand,
   setOverarchingPromptCommand,
   setStylePresetCommand,
@@ -109,8 +110,6 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
   const [pendingLassoPoints, setPendingLassoPoints] = useState<Array<{ x: number; y: number }>>([]);
   const [wireframeCycleCount, setWireframeCycleCount] = useState(3);
   const [wireframeVariantCount, setWireframeVariantCount] = useState(4);
-  const [preferredWireframeArtifactsByObjectId, setPreferredWireframeArtifactsByObjectId] =
-    useState<Record<string, string>>({});
   const [isHydratedFromApi, setIsHydratedFromApi] = useState(false);
   const [isLoadingScene, setIsLoadingScene] = useState(true);
   const [isPersistingScene, setIsPersistingScene] = useState(false);
@@ -130,6 +129,22 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
   const selectedObject = useMemo(
     () => sceneSpec.objects.find((object) => object.id === selectedObjectId) ?? null,
     [sceneSpec.objects, selectedObjectId],
+  );
+
+  const preferredWireframeArtifactsByObjectId = useMemo(
+    () =>
+      Object.fromEntries(
+        sceneSpec.objects
+          .map((object) => {
+            const artifactId = object.metadata?.preferred_wireframe_artifact_id;
+            if (typeof artifactId !== "string" || artifactId.length === 0) {
+              return null;
+            }
+            return [object.id, artifactId] as const;
+          })
+          .filter((entry): entry is readonly [string, string] => Boolean(entry)),
+      ),
+    [sceneSpec.objects],
   );
 
   const wireframeArtifactsByObjectId = useMemo(
@@ -808,27 +823,18 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
   };
 
   const chooseWireframeCandidate = (artifactId: string) => {
-    if (!selectedObjectId) {
+    if (!selectedObject) {
       return;
     }
-    setPreferredWireframeArtifactsByObjectId((current) => ({
-      ...current,
-      [selectedObjectId]: artifactId,
-    }));
-    setJobFeedback(
-      `Selected wireframe candidate ${artifactId} for ${selectedObject?.name ?? "object"}.`,
-    );
+    executeCommand(setObjectPreferredWireframeCommand(selectedObject.id, artifactId));
+    setJobFeedback(`Selected wireframe candidate ${artifactId} for ${selectedObject.name}.`);
   };
 
   const clearPreferredWireframeCandidate = () => {
-    if (!selectedObjectId) {
+    if (!selectedObject) {
       return;
     }
-    setPreferredWireframeArtifactsByObjectId((current) => {
-      const next = { ...current };
-      delete next[selectedObjectId];
-      return next;
-    });
+    executeCommand(setObjectPreferredWireframeCommand(selectedObject.id, null));
     setJobFeedback("Wireframe candidate reset to latest successful sketch.");
   };
 

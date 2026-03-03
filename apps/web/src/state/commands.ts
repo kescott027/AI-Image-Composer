@@ -330,6 +330,34 @@ export function setObjectAnchoredCommand(objectId: string, anchored: boolean): S
   };
 }
 
+export function setObjectPreferredWireframeCommand(
+  objectId: string,
+  artifactId: string | null,
+): SceneCommand {
+  return {
+    name: artifactId ? "SET_OBJECT_PREFERRED_WIREFRAME" : "CLEAR_OBJECT_PREFERRED_WIREFRAME",
+    apply(sceneSpec) {
+      const next = cloneSceneSpec(sceneSpec);
+      next.objects = next.objects.map((object) => {
+        if (object.id !== objectId) {
+          return object;
+        }
+        const nextMetadata = { ...object.metadata };
+        if (artifactId && artifactId.trim()) {
+          nextMetadata.preferred_wireframe_artifact_id = artifactId;
+        } else {
+          delete nextMetadata.preferred_wireframe_artifact_id;
+        }
+        return {
+          ...object,
+          metadata: nextMetadata,
+        };
+      });
+      return next;
+    },
+  };
+}
+
 export function renameObjectCommand(objectId: string, name: string): SceneCommand {
   return {
     name: "RENAME_OBJECT",
