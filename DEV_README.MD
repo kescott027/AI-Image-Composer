@@ -107,6 +107,25 @@ Run hooks ad hoc:
 make hooks-run
 ```
 
+## Repository Governance
+
+- CODEOWNERS is configured in [CODEOWNERS](/Users/kylescott/git/AI-Image-Composer/.github/CODEOWNERS).
+- PR template is configured in [PULL_REQUEST_TEMPLATE.md](/Users/kylescott/git/AI-Image-Composer/.github/PULL_REQUEST_TEMPLATE.md).
+- Issue forms are configured in:
+  - [bug_report.yml](/Users/kylescott/git/AI-Image-Composer/.github/ISSUE_TEMPLATE/bug_report.yml)
+  - [feature_request.yml](/Users/kylescott/git/AI-Image-Composer/.github/ISSUE_TEMPLATE/feature_request.yml)
+  - [config.yml](/Users/kylescott/git/AI-Image-Composer/.github/ISSUE_TEMPLATE/config.yml)
+
+## Dependency Automation
+
+- Dependabot is configured in [dependabot.yml](/Users/kylescott/git/AI-Image-Composer/.github/dependabot.yml).
+- It checks `npm`, `pip`, and `github-actions` dependencies weekly.
+
+## Dev Container
+
+- Baseline container config is in [devcontainer.json](/Users/kylescott/git/AI-Image-Composer/.devcontainer/devcontainer.json).
+- The container installs Node 20 + Python 3.12 and runs `make setup` after creation.
+
 ## Foundational Development Practices
 
 ### Source control
@@ -147,6 +166,6 @@ Coverage thresholds are intentionally staged to avoid false gates before code sc
 - Update docs when behavior or commands change.
 - Keep `README.md` for product overview and `DEV_README.MD` for contributor workflow.
 
-## Remaining Recommendation
+## Remaining Manual Step
 
-1. Add CODEOWNERS for API/Web/Worker ownership as team grows.
+1. Configure branch protection rules in GitHub repository settings to require CI checks and reviews.
