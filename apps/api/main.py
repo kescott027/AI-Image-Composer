@@ -58,12 +58,7 @@ api_logger = _configure_api_logger()
 def validate_runtime_security() -> None:
     assert_runtime_secrets()
     metadata = runtime_secret_metadata()
-    api_logger.info(
-        "runtime_security_validated env=%s app_secret_key_version=%s provider_keyset_version=%s",
-        metadata["env"],
-        metadata["app_secret_key_version"],
-        metadata["provider_keyset_version"],
-    )
+    api_logger.info("runtime_security_validated env=%s", metadata["env"])
 
 
 def reset_rate_limiter_state() -> None:
