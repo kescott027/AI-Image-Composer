@@ -2,7 +2,7 @@
 
 ## Phase 0 – Framing & Structural Foundations
 
-### 1. Define Product Framing and Milestones
+### 1. [IN PROGRESS] Define Product Framing and Milestones
 **Deliverable:**  
 A short build plan document defining:
 - Phase 0, MVP, Phase 2, Phase 3
@@ -11,7 +11,7 @@ A short build plan document defining:
 
 ---
 
-### 2. Create Monorepo Skeleton (Frontend + Backend + Workers)
+### 2. [DONE] Create Monorepo Skeleton (Frontend + Backend + Workers)
 **Deliverable:**  
 Suggested Repository structure:
 ```text 
@@ -32,7 +32,7 @@ Includes:
 
 ---
 
-### 3. Define Canonical SceneSpec and API Contracts
+### 3. [DONE] Define Canonical SceneSpec and API Contracts
 **Deliverable:**  
 - `SceneSpec` JSON schema
 - TypeScript types (frontend)
@@ -41,7 +41,7 @@ Includes:
 
 ---
 
-### 4. Implement Persistent Storage Foundation (Postgres + Migrations)
+### 4. [NOT STARTED] Implement Persistent Storage Foundation (Postgres + Migrations)
 **Deliverable:**  
 Database schema and migrations for:
 - projects
@@ -57,7 +57,7 @@ Includes docker-compose for local Postgres.
 
 ---
 
-### 5. Implement Artifact Storage Abstraction (Local First)
+### 5. [NOT STARTED] Implement Artifact Storage Abstraction (Local First)
 **Deliverable:**  
 Backend module to:
 - Store images/masks/thumbnails locally
@@ -66,7 +66,7 @@ Backend module to:
 
 ---
 
-### 6. Implement Core CRUD for Projects and Scenes
+### 6. [NOT STARTED] Implement Core CRUD for Projects and Scenes
 **Deliverable:**  
 API endpoints:
 - Create/list projects
@@ -77,7 +77,7 @@ API endpoints:
 
 ---
 
-### 7. Implement Job System Scaffolding (No ML Yet)
+### 7. [IN PROGRESS] Implement Job System Scaffolding (No ML Yet)
 **Deliverable:**  
 - Create job endpoint
 - Poll job status endpoint
@@ -88,7 +88,7 @@ API endpoints:
 
 ---
 
-### 8. Implement Fake Generator Adapters (Pipeline Proof)
+### 8. [NOT STARTED] Implement Fake Generator Adapters (Pipeline Proof)
 **Deliverable:**  
 Worker generates placeholder PNG outputs for:
 - SKETCH
@@ -101,7 +101,7 @@ This proves end-to-end plumbing works.
 
 ## MVP – Initial Usable Release
 
-### 9. Build Web App Shell and Routing
+### 9. [IN PROGRESS] Build Web App Shell and Routing
 **Deliverable:**  
 React app with routes:
 - Project list
@@ -112,7 +112,7 @@ Basic layout: left panel / canvas / right panel.
 
 ---
 
-### 10. Implement SceneSpec State Store and Undo/Redo
+### 10. [NOT STARTED] Implement SceneSpec State Store and Undo/Redo
 **Deliverable:**  
 Frontend state management:
 - Canonical SceneSpec object
@@ -121,7 +121,7 @@ Frontend state management:
 
 ---
 
-### 11. Implement Canvas Editor Core
+### 11. [NOT STARTED] Implement Canvas Editor Core
 **Deliverable:**  
 Canvas with:
 - Pan / zoom
@@ -130,7 +130,7 @@ Canvas with:
 
 ---
 
-### 12. Implement Layers Panel
+### 12. [NOT STARTED] Implement Layers Panel
 **Deliverable:**  
 UI to:
 - Create layers
@@ -140,7 +140,7 @@ UI to:
 
 ---
 
-### 13. Implement Object Creation and Transform Tools
+### 13. [NOT STARTED] Implement Object Creation and Transform Tools
 **Deliverable:**  
 - “Add object” action
 - Move / rotate / scale
@@ -149,13 +149,13 @@ UI to:
 
 ---
 
-### 14. Implement Overarching Prompt Editor
+### 14. [NOT STARTED] Implement Overarching Prompt Editor
 **Deliverable:**  
 Scene-level prompt editor stored in SceneSpec and versioned.
 
 ---
 
-### 15. Implement Per-Object Prompt Editor
+### 15. [NOT STARTED] Implement Per-Object Prompt Editor
 **Deliverable:**  
 Each object supports:
 - Prompt
@@ -164,7 +164,7 @@ Each object supports:
 
 ---
 
-### 16. Implement Generation Job Submission from UI
+### 16. [NOT STARTED] Implement Generation Job Submission from UI
 **Deliverable:**  
 Buttons for:
 - Generate wireframe
@@ -175,7 +175,7 @@ UI calls backend to create jobs.
 
 ---
 
-### 17. Implement Job Status UI
+### 17. [NOT STARTED] Implement Job Status UI
 **Deliverable:**  
 Job queue panel:
 - Active jobs
@@ -186,7 +186,7 @@ Job queue panel:
 
 ---
 
-### 18. Implement Wireframe Artifact Rendering
+### 18. [NOT STARTED] Implement Wireframe Artifact Rendering
 **Deliverable:**  
 When SKETCH job completes:
 - Wireframe image appears in correct layer
@@ -194,7 +194,7 @@ When SKETCH job completes:
 
 ---
 
-### 19. Implement Object Render Artifact Rendering
+### 19. [NOT STARTED] Implement Object Render Artifact Rendering
 **Deliverable:**  
 When OBJECT_RENDER job completes:
 - RGBA image displayed correctly
@@ -202,7 +202,7 @@ When OBJECT_RENDER job completes:
 
 ---
 
-### 20. Implement Simple Final Composite Generation
+### 20. [NOT STARTED] Implement Simple Final Composite Generation
 **Deliverable:**  
 FINAL_COMPOSITE job:
 - Alpha-composite of layers
@@ -211,7 +211,7 @@ FINAL_COMPOSITE job:
 
 ---
 
-### 21. Implement Scene Versioning (Save Points)
+### 21. [NOT STARTED] Implement Scene Versioning (Save Points)
 **Deliverable:**  
 - “Save version” action
 - List prior versions
@@ -219,7 +219,7 @@ FINAL_COMPOSITE job:
 
 ---
 
-### 22. Implement Relations Data Model and Basic UI
+### 22. [NOT STARTED] Implement Relations Data Model and Basic UI
 **Deliverable:**  
 Ability to create relations:
 - faces
@@ -231,7 +231,7 @@ Relations stored in SceneSpec and persisted.
 
 ---
 
-### 23. Implement Relation-Aware Prompt Compilation
+### 23. [NOT STARTED] Implement Relation-Aware Prompt Compilation
 **Deliverable:**  
 Backend prompt compiler merges:
 - Overarching prompt
@@ -245,7 +245,7 @@ Used when generating jobs.
 
 ## Initial Usable Release (IUR)
 
-### 24. Package Initial Usable Release
+### 24. [NOT STARTED] Package Initial Usable Release
 **Definition of Done:**  
 A user can:
 - Create a scene
@@ -263,7 +263,7 @@ Tag this release.
 
 ## Phase 2 – Constraint Awareness & Intelligence
 
-### 25. Replace Fake Sketch Adapter with Real Model
+### 25. [NOT STARTED] Replace Fake Sketch Adapter with Real Model
 **Deliverable:**  
 - Integrate lightweight sketch model
 - Maintain adapter interface
@@ -271,7 +271,7 @@ Tag this release.
 
 ---
 
-### 26. Replace Fake Object Render Adapter with Real Model
+### 26. [NOT STARTED] Replace Fake Object Render Adapter with Real Model
 **Deliverable:**  
 - Integrate SD/SDXL-based object renderer
 - Transparent background support
@@ -280,7 +280,7 @@ Tag this release.
 
 ---
 
-### 27. Add Relation Conflict Detection
+### 27. [NOT STARTED] Add Relation Conflict Detection
 **Deliverable:**  
 Constraint engine that:
 - Detects conflicting directional relations
@@ -291,7 +291,7 @@ Constraint engine that:
 
 ## Phase 3 – Zone-Based Generation
 
-### 28. Implement Manual Zone Definition
+### 28. [NOT STARTED] Implement Manual Zone Definition
 **Deliverable:**  
 UI for:
 - Rectangular/lasso zone drawing
@@ -300,7 +300,7 @@ UI for:
 
 ---
 
-### 29. Implement Zone-Based Generation Pipeline
+### 29. [NOT STARTED] Implement Zone-Based Generation Pipeline
 **Deliverable:**  
 Backend:
 - Break scene into zones
@@ -310,7 +310,7 @@ Backend:
 
 ---
 
-### 30. Add Refinement Pass / Seam Reduction
+### 30. [NOT STARTED] Add Refinement Pass / Seam Reduction
 **Deliverable:**  
 Optional refinement job:
 - Low-strength global pass

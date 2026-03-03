@@ -68,6 +68,12 @@ pnpm run dev:worker
 pnpm run dev:web
 ```
 
+Export API OpenAPI schema:
+
+```bash
+make openapi
+```
+
 ## Self-Serve Scripts
 
 All primary workflows are wrapped in scripts under `/scripts` and exposed via `make` and `pnpm`.

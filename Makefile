@@ -1,7 +1,7 @@
 SHELL := /usr/bin/env bash
 .DEFAULT_GOAL := help
 
-.PHONY: help setup dev-api dev-worker dev-web lint format format-check test scan ci hooks-install hooks-run clean
+.PHONY: help setup dev-api dev-worker dev-web openapi lint format format-check test scan ci hooks-install hooks-run clean
 
 help: ## Show available commands
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "%-16s %s\n", $$1, $$2}'
@@ -17,6 +17,9 @@ dev-worker: ## Run worker heartbeat loop
 
 dev-web: ## Run web development server
 	pnpm run dev:web
+
+openapi: ## Export FastAPI OpenAPI schema to apps/api/openapi.json
+	./scripts/export-openapi.sh
 
 lint: ## Run JS + Python linting
 	./scripts/lint.sh

@@ -14,6 +14,7 @@
     "preview:web": "pnpm --filter @ai-image-composer/web preview",
     "dev:api": "uv run uvicorn apps.api.main:app --reload --port 8000",
     "dev:worker": "uv run python apps/worker/worker.py --interval 5",
+    "openapi:export": "./scripts/export-openapi.sh",
     "lint": "./scripts/lint.sh",
     "format": "./scripts/format.sh write",
     "format:check": "./scripts/format.sh check",
