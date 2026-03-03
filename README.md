@@ -195,6 +195,17 @@ Docker (for Postgres)
 
 Optional GPU for ML adapters
 
+Simplest install + launch:
+
+```bash
+make install
+aiic
+```
+
+`make install` checks prerequisites, installs missing dependencies when possible, installs the `aiic` shell function in `~/.zshrc` and/or `~/.bashrc`, and prepares the repo.
+
+`aiic` launches API + worker + web with a watchdog. Press `Ctrl+C` to stop and shut down gracefully.
+
 1. Install dependencies and hooks
    make setup
 2. Start local Postgres
