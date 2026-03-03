@@ -12,7 +12,7 @@
     "@ai-image-composer/shared": "workspace:*",
     "react": "^18.3.1",
     "react-dom": "^19.2.4",
-    "react-router-dom": "^6.30.1"
+    "react-router-dom": "^7.13.1"
   },
   "devDependencies": {
     "@types/react": "^19.2.14",
