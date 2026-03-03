@@ -140,7 +140,7 @@ UI to:
 
 ---
 
-### 13. [NOT STARTED] Implement Object Creation and Transform Tools
+### 13. [DONE] Implement Object Creation and Transform Tools
 **Deliverable:**  
 - “Add object” action
 - Move / rotate / scale

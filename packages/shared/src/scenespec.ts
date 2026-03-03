@@ -36,9 +36,13 @@ export interface SceneSpec {
     transform?: {
       x: number;
       y: number;
+      scale_x: number;
+      scale_y: number;
+      rotation_deg: number;
+      z_index: number;
+      anchor: "center" | "top_left";
       width: number;
       height: number;
-      rotation_deg: number;
     };
   }>;
   relations: Array<{

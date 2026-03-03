@@ -6,6 +6,8 @@ import { nextScaleFromWheel } from "./canvasMath";
 
 interface SceneCanvasProps {
   sceneSpec: SceneSpec;
+  selectedObjectId: string | null;
+  onSelectObject: (objectId: string | null) => void;
 }
 
 const LAYER_COLORS = ["#e65b2d", "#2d7de6", "#2aa06a", "#8a4de0", "#d04e89"];
@@ -18,6 +20,8 @@ interface CanvasObject {
   y: number;
   width: number;
   height: number;
+  rotationDeg: number;
+  zIndex: number;
 }
 
 function toCanvasObjects(sceneSpec: SceneSpec): CanvasObject[] {
@@ -25,9 +29,13 @@ function toCanvasObjects(sceneSpec: SceneSpec): CanvasObject[] {
     const transform = object.transform ?? {
       x: 60 + index * 18,
       y: 60 + index * 18,
+      scale_x: 1,
+      scale_y: 1,
       width: 110,
       height: 80,
       rotation_deg: 0,
+      z_index: index,
+      anchor: "top_left",
     };
 
     return {
@@ -36,25 +44,37 @@ function toCanvasObjects(sceneSpec: SceneSpec): CanvasObject[] {
       layerId: object.layer_id,
       x: transform.x,
       y: transform.y,
-      width: transform.width,
-      height: transform.height,
+      width: transform.width * transform.scale_x,
+      height: transform.height * transform.scale_y,
+      rotationDeg: transform.rotation_deg,
+      zIndex: transform.z_index,
     };
   });
 }
 
-export function SceneCanvas({ sceneSpec }: SceneCanvasProps) {
+export function SceneCanvas({ sceneSpec, selectedObjectId, onSelectObject }: SceneCanvasProps) {
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const [scale, setScale] = useState(1);
   const [offset, setOffset] = useState({ x: 30, y: 30 });
   const [isPanning, setIsPanning] = useState(false);
-  const [selectedObjectId, setSelectedObjectId] = useState<string | null>(null);
   const [panStart, setPanStart] = useState<{ x: number; y: number } | null>(null);
 
   const visibleLayers = useMemo(
     () => sceneSpec.layers.filter((layer) => layer.visible).sort((a, b) => a.order - b.order),
     [sceneSpec.layers],
   );
-  const canvasObjects = useMemo(() => toCanvasObjects(sceneSpec), [sceneSpec]);
+  const canvasObjects = useMemo(
+    () =>
+      toCanvasObjects(sceneSpec).sort((a, b) => {
+        const layerOrderA = visibleLayers.find((layer) => layer.id === a.layerId)?.order ?? 0;
+        const layerOrderB = visibleLayers.find((layer) => layer.id === b.layerId)?.order ?? 0;
+        if (layerOrderA !== layerOrderB) {
+          return layerOrderA - layerOrderB;
+        }
+        return a.zIndex - b.zIndex;
+      }),
+    [sceneSpec, visibleLayers],
+  );
 
   const layerById = useMemo(() => {
     const lookup = new Map<string, { name: string; color: string }>();
@@ -80,6 +100,7 @@ export function SceneCanvas({ sceneSpec }: SceneCanvasProps) {
     if ((event.target as HTMLElement).closest("[data-object-id]")) {
       return;
     }
+    onSelectObject(null);
 
     setIsPanning(true);
     setPanStart({ x: event.clientX - offset.x, y: event.clientY - offset.y });
@@ -137,25 +158,29 @@ export function SceneCanvas({ sceneSpec }: SceneCanvasProps) {
                   data-object-id={object.id}
                   onClick={(event) => {
                     event.stopPropagation();
-                    setSelectedObjectId(object.id);
+                    onSelectObject(object.id);
                   }}
                 >
-                  <rect
-                    x={object.x}
-                    y={object.y}
-                    width={object.width}
-                    height={object.height}
-                    rx={10}
-                    fill={`${layerInfo.color}33`}
-                    stroke={isSelected ? "#0d1f3a" : layerInfo.color}
-                    strokeWidth={isSelected ? 3 : 2}
-                  />
-                  <text x={object.x + 10} y={object.y + 22} className="canvas-object-label">
-                    {object.name}
-                  </text>
-                  <text x={object.x + 10} y={object.y + 42} className="canvas-layer-label">
-                    {layerInfo.name}
-                  </text>
+                  <g
+                    transform={`translate(${object.x + object.width / 2}, ${object.y + object.height / 2}) rotate(${object.rotationDeg}) translate(${-object.width / 2}, ${-object.height / 2})`}
+                  >
+                    <rect
+                      x={0}
+                      y={0}
+                      width={object.width}
+                      height={object.height}
+                      rx={10}
+                      fill={`${layerInfo.color}33`}
+                      stroke={isSelected ? "#0d1f3a" : layerInfo.color}
+                      strokeWidth={isSelected ? 3 : 2}
+                    />
+                    <text x={10} y={22} className="canvas-object-label">
+                      {object.name}
+                    </text>
+                    <text x={10} y={42} className="canvas-layer-label">
+                      {layerInfo.name}
+                    </text>
+                  </g>
                 </g>
               );
             })}

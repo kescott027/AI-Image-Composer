@@ -3,7 +3,11 @@ import { describe, expect, it } from "vitest";
 import {
   addLayerCommand,
   addObjectCommand,
+  moveObjectCommand,
+  moveObjectZOrderCommand,
   moveLayerCommand,
+  rotateObjectCommand,
+  scaleObjectCommand,
   setOverarchingPromptCommand,
   toggleLayerLockCommand,
 } from "../../apps/web/src/state/commands";
@@ -61,6 +65,56 @@ describe("scene store reducer", () => {
 
     expect(state.sceneSpec.objects).toHaveLength(1);
     expect(state.sceneSpec.objects[0]?.name).toBe("Hero");
+    expect(state.sceneSpec.objects[0]?.transform?.z_index).toBe(0);
+  });
+
+  it("updates object transform and z-order through commands", () => {
+    let state = createInitialSceneStoreState("scene_store_5");
+    const objectLayer = state.sceneSpec.layers.find((layer) => layer.type === "OBJECT");
+    expect(objectLayer).toBeDefined();
+    if (!objectLayer) {
+      return;
+    }
+
+    state = sceneStoreReducer(state, {
+      type: "EXECUTE_COMMAND",
+      command: addObjectCommand(objectLayer.id, "Hero"),
+    });
+    state = sceneStoreReducer(state, {
+      type: "EXECUTE_COMMAND",
+      command: addObjectCommand(objectLayer.id, "Villain"),
+    });
+
+    const hero = state.sceneSpec.objects.find((object) => object.name === "Hero");
+    expect(hero).toBeDefined();
+    if (!hero) {
+      return;
+    }
+
+    state = sceneStoreReducer(state, {
+      type: "EXECUTE_COMMAND",
+      command: moveObjectCommand(hero.id, 25, -10),
+    });
+    state = sceneStoreReducer(state, {
+      type: "EXECUTE_COMMAND",
+      command: rotateObjectCommand(hero.id, 30),
+    });
+    state = sceneStoreReducer(state, {
+      type: "EXECUTE_COMMAND",
+      command: scaleObjectCommand(hero.id, 1.1),
+    });
+    state = sceneStoreReducer(state, {
+      type: "EXECUTE_COMMAND",
+      command: moveObjectZOrderCommand(hero.id, "UP"),
+    });
+
+    const updatedHero = state.sceneSpec.objects.find((object) => object.id === hero.id);
+    expect(updatedHero?.transform?.x).toBe(105);
+    expect(updatedHero?.transform?.y).toBe(80);
+    expect(updatedHero?.transform?.rotation_deg).toBe(30);
+    expect(updatedHero?.transform?.scale_x).toBe(1.1);
+    expect(updatedHero?.transform?.scale_y).toBe(1.1);
+    expect(updatedHero?.transform?.z_index).toBe(1);
   });
 
   it("toggles lock and reorders layers", () => {
