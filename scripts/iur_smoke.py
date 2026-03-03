@@ -54,6 +54,17 @@ class ApiClient:
             raise RuntimeError(f"{method} {path} failed ({exc.code}): {detail}") from exc
 
 
+def _process_jobs(max_iterations: int) -> int:
+    from apps.worker import worker
+
+    processed = 0
+    for _ in range(max_iterations):
+        if not worker.process_one_job():
+            break
+        processed += 1
+    return processed
+
+
 def _build_scene_spec(scene_id: str, title: str) -> dict:
     timestamp = datetime.utcnow().isoformat() + "Z"
     return {
@@ -170,7 +181,7 @@ def _build_scene_spec(scene_id: str, title: str) -> dict:
     }
 
 
-def run(base_url: str) -> None:
+def run(base_url: str, *, process_jobs: bool = False, max_worker_iterations: int = 16) -> None:
     client = ApiClient(base_url=_validated_http_url(base_url))
 
     print("[1/8] Creating project")
@@ -205,7 +216,7 @@ def run(base_url: str) -> None:
         raise RuntimeError("Expected scene version number >= 2 after manual save")
 
     print("[6/8] Queueing sketch + object render jobs")
-    client.call(
+    sketch_job = client.call(
         "POST",
         "/jobs",
         {
@@ -214,7 +225,7 @@ def run(base_url: str) -> None:
             "input": {"scene_spec": scene_spec, "target_object_id": "obj_tent"},
         },
     )
-    client.call(
+    object_render_job = client.call(
         "POST",
         "/jobs",
         {
@@ -225,7 +236,7 @@ def run(base_url: str) -> None:
     )
 
     print("[7/8] Queueing final composite job")
-    client.call(
+    composite_job = client.call(
         "POST",
         "/jobs",
         {
@@ -234,6 +245,15 @@ def run(base_url: str) -> None:
             "input": {"scene_spec": scene_spec},
         },
     )
+
+    if process_jobs:
+        print("[8/9] Processing queued jobs via worker")
+        processed_count = _process_jobs(max_worker_iterations)
+        if processed_count < 3:
+            raise RuntimeError(
+                "Expected at least 3 jobs to be processed in smoke flow; "
+                f"processed={processed_count}"
+            )
 
     print("[8/8] Verifying persistence endpoints")
     versions = client.call("GET", f"/scenes/{scene_id}/versions")
@@ -246,6 +266,31 @@ def run(base_url: str) -> None:
         raise RuntimeError("Expected at least 3 jobs")
     if not any(item["id"] == scene_id for item in scenes):
         raise RuntimeError("Scene missing from project scene listing")
+    if process_jobs:
+        jobs_by_id = {
+            item["id"]: item
+            for item in jobs
+            if isinstance(item, dict) and isinstance(item.get("id"), str)
+        }
+        for job in [sketch_job, object_render_job, composite_job]:
+            if not isinstance(job, dict):
+                raise RuntimeError("Job creation response payload is invalid")
+            job_id = job.get("id")
+            if not isinstance(job_id, str):
+                raise RuntimeError("Job creation response missing id")
+            status = jobs_by_id.get(job_id, {}).get("status")
+            if status != "SUCCEEDED":
+                raise RuntimeError(f"Expected job {job_id} to succeed after worker processing")
+
+        composite_artifact_ids = jobs_by_id[composite_job["id"]].get("output_artifact_ids", [])
+        if not isinstance(composite_artifact_ids, list) or not composite_artifact_ids:
+            raise RuntimeError("Composite job has no output artifacts")
+        composite_artifact_id = composite_artifact_ids[0]
+        if not isinstance(composite_artifact_id, str):
+            raise RuntimeError("Composite artifact id is invalid")
+        composite_meta = client.call("GET", f"/artifacts/{composite_artifact_id}/meta")
+        if not isinstance(composite_meta, dict) or composite_meta.get("subtype") != "COMPOSITE":
+            raise RuntimeError("Composite artifact metadata is missing or subtype is not COMPOSITE")
 
     print("IUR smoke flow completed successfully")
     print(json.dumps({"project_id": project_id, "scene_id": scene_id, "jobs": len(jobs)}, indent=2))
@@ -254,10 +299,25 @@ def run(base_url: str) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run IUR smoke flow against the API")
     parser.add_argument("--base-url", default="http://localhost:8000", help="API base URL")
+    parser.add_argument(
+        "--process-jobs",
+        action="store_true",
+        help="Process queued jobs directly via worker and verify resulting artifacts",
+    )
+    parser.add_argument(
+        "--max-worker-iterations",
+        default=16,
+        type=int,
+        help="Maximum number of worker job processing iterations when --process-jobs is used",
+    )
     args = parser.parse_args()
 
     try:
-        run(args.base_url)
+        run(
+            args.base_url,
+            process_jobs=args.process_jobs,
+            max_worker_iterations=max(1, args.max_worker_iterations),
+        )
     except Exception as exc:
         print(f"IUR smoke failed: {exc}", file=sys.stderr)
         return 1

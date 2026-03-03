@@ -206,6 +206,10 @@ IUR smoke validation:
 
 make iur-smoke
 
+Full scene-to-render happy-path validation (includes worker job processing):
+
+make iur-happy-path
+
 Generation Flow
 
 User edits SceneSpec in UI.

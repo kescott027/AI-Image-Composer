@@ -30,6 +30,7 @@ import { ROUTES } from "../routes";
 import {
   mapLatestFinalCompositeArtifactId,
   mapLatestObjectRenderArtifactsByObjectId,
+  mapRecentSuccessfulArtifacts,
   mapLatestSketchArtifactsByObjectId,
 } from "../state/jobArtifacts";
 import {
@@ -102,6 +103,7 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
     () => mapLatestFinalCompositeArtifactId(sceneJobs),
     [sceneJobs],
   );
+  const recentArtifacts = useMemo(() => mapRecentSuccessfulArtifacts(sceneJobs, 10), [sceneJobs]);
   const relationSignature = useMemo(
     () =>
       sceneSpec.relations
@@ -543,6 +545,11 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
     }
   };
 
+  const formatArtifactCaption = (artifact: (typeof recentArtifacts)[number]) => {
+    const target = artifact.targetObjectId ? ` · ${artifact.targetObjectId}` : "";
+    return `${artifact.jobType}${target}`;
+  };
+
   return (
     <main className="editor-wrap">
       <header className="editor-header">
@@ -854,6 +861,51 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
                     >
                       Restore
                     </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+          <section className="artifact-gallery-panel">
+            <h3>Recent Artifacts</h3>
+            {recentArtifacts.length === 0 ? (
+              <p className="job-empty">No successful artifact outputs yet.</p>
+            ) : (
+              <ul className="artifact-gallery-list">
+                {recentArtifacts.map((artifact) => (
+                  <li
+                    key={`${artifact.jobId}:${artifact.artifactId}`}
+                    className="artifact-gallery-item"
+                  >
+                    <a
+                      href={`/api/artifacts/${artifact.artifactId}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="artifact-gallery-thumb-link"
+                    >
+                      <img
+                        src={`/api/artifacts/${artifact.artifactId}`}
+                        alt={`Artifact ${artifact.artifactId}`}
+                        className="artifact-gallery-thumb"
+                        loading="lazy"
+                      />
+                    </a>
+                    <div className="artifact-gallery-meta">
+                      <p className="artifact-gallery-title">{formatArtifactCaption(artifact)}</p>
+                      <p className="artifact-gallery-subtitle">
+                        {artifact.createdAt
+                          ? new Date(artifact.createdAt).toLocaleTimeString()
+                          : "time unknown"}
+                      </p>
+                      <a
+                        href={`/api/artifacts/${artifact.artifactId}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mini-button"
+                      >
+                        Open Artifact
+                      </a>
+                    </div>
                   </li>
                 ))}
               </ul>
