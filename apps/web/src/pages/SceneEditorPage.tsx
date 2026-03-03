@@ -199,6 +199,54 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
     () => renderOrderedObjects.filter((object) => object.metadata?.anchored !== true),
     [renderOrderedObjects],
   );
+  const latestObjectRenderJobByObjectId = useMemo(() => {
+    const latestByObjectId = new Map<string, JobRead>();
+    sceneJobs.forEach((job) => {
+      if (job.job_type !== "OBJECT_RENDER") {
+        return;
+      }
+      const targetObjectId = job.input.target_object_id;
+      if (typeof targetObjectId !== "string" || targetObjectId.length === 0) {
+        return;
+      }
+      const existing = latestByObjectId.get(targetObjectId);
+      const currentCreatedAtMs = job.created_at ? Date.parse(job.created_at) : 0;
+      const existingCreatedAtMs = existing?.created_at ? Date.parse(existing.created_at) : -1;
+      if (!existing || currentCreatedAtMs >= existingCreatedAtMs) {
+        latestByObjectId.set(targetObjectId, job);
+      }
+    });
+    return latestByObjectId;
+  }, [sceneJobs]);
+  const renderProgress = useMemo(() => {
+    const total = renderOrderedObjects.length;
+    let succeeded = 0;
+    let running = 0;
+    let queued = 0;
+    let failed = 0;
+    let missing = 0;
+
+    renderOrderedObjects.forEach((object) => {
+      const job = latestObjectRenderJobByObjectId.get(object.id);
+      if (!job) {
+        missing += 1;
+        return;
+      }
+      if (job.status === "SUCCEEDED") {
+        succeeded += 1;
+      } else if (job.status === "RUNNING") {
+        running += 1;
+      } else if (job.status === "QUEUED") {
+        queued += 1;
+      } else if (job.status === "FAILED") {
+        failed += 1;
+      } else {
+        missing += 1;
+      }
+    });
+
+    return { total, succeeded, running, queued, failed, missing };
+  }, [latestObjectRenderJobByObjectId, renderOrderedObjects]);
 
   useEffect(() => {
     latestSceneSpecRef.current = sceneSpec;
@@ -822,6 +870,37 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
     }
   };
 
+  const retryFailedObjectRenders = async () => {
+    const failedObjects = renderOrderedObjects.filter(
+      (object) => latestObjectRenderJobByObjectId.get(object.id)?.status === "FAILED",
+    );
+    if (failedObjects.length === 0) {
+      setJobFeedback("No failed object renders to retry.");
+      return;
+    }
+
+    setActiveSubmission("OBJECT_RENDER");
+    setJobFeedback(`Retrying ${failedObjects.length} failed object render(s)...`);
+    try {
+      await upsertSceneSpec(sceneId, sceneSpec);
+      for (const object of failedObjects) {
+        await queueGenerationJob("OBJECT_RENDER", {
+          targetObjectId: object.id,
+          wireframeArtifactId:
+            preferredWireframeArtifactsByObjectId[object.id] ??
+            wireframeArtifactsByObjectId[object.id],
+          generationMode: "OBJECT",
+        });
+      }
+      setJobFeedback(`Queued ${failedObjects.length} object render retry job(s).`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown object retry error";
+      setJobFeedback(`Retry failed: ${message}`);
+    } finally {
+      setActiveSubmission(null);
+    }
+  };
+
   const formatArtifactCaption = (artifact: (typeof recentArtifacts)[number]) => {
     const target = artifact.targetObjectId ? ` · ${artifact.targetObjectId}` : "";
     return `${artifact.jobType}${target}`;
@@ -1246,6 +1325,23 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
                 )}
               </div>
             ) : null}
+            <section className="scene-versions-panel">
+              <h4>Layer Render Progress</h4>
+              <p>
+                {renderProgress.succeeded}/{renderProgress.total} succeeded ·
+                {` queued ${renderProgress.queued} · running ${renderProgress.running} · failed ${renderProgress.failed} · pending ${renderProgress.missing}`}
+              </p>
+              <div className="tool-row">
+                <button
+                  type="button"
+                  className="mini-button"
+                  onClick={() => void retryFailedObjectRenders()}
+                  disabled={activeSubmission !== null || renderProgress.failed === 0}
+                >
+                  Retry Failed Object Renders
+                </button>
+              </div>
+            </section>
             <div className="tool-row">
               <button
                 type="button"
