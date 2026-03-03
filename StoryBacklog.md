@@ -164,7 +164,7 @@ Each object supports:
 
 ---
 
-### 16. [NOT STARTED] Implement Generation Job Submission from UI
+### 16. [DONE] Implement Generation Job Submission from UI
 **Deliverable:**  
 Buttons for:
 - Generate wireframe
