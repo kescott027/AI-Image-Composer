@@ -84,6 +84,7 @@ def _project_read(project: db_models.Project) -> ProjectRead:
         name=project.name,
         description=project.description,
         created_at=_iso(project.created_at),
+        archived_at=_iso(project.archived_at),
     )
 
 
@@ -337,8 +338,13 @@ def create_project(payload: ProjectCreate, db: Session = Depends(get_db_session)
 
 
 @app.get("/projects", response_model=list[ProjectRead], tags=["projects"])
-def list_projects(db: Session = Depends(get_db_session)) -> list[ProjectRead]:
+def list_projects(
+    include_archived: bool = Query(default=False),
+    db: Session = Depends(get_db_session),
+) -> list[ProjectRead]:
     stmt = select(db_models.Project).order_by(desc(db_models.Project.created_at))
+    if not include_archived:
+        stmt = stmt.where(db_models.Project.archived_at.is_(None))
     projects = db.execute(stmt).scalars().all()
     return [_project_read(project) for project in projects]
 
@@ -348,6 +354,8 @@ def create_scene(payload: SceneCreate, db: Session = Depends(get_db_session)) ->
     project = db.get(db_models.Project, payload.project_id)
     if project is None:
         raise HTTPException(status_code=404, detail="Project not found")
+    if project.archived_at is not None:
+        raise HTTPException(status_code=409, detail="Project is archived")
 
     scene = db_models.Scene(
         id=_generate_id("scene"),
@@ -366,6 +374,34 @@ def create_scene(payload: SceneCreate, db: Session = Depends(get_db_session)) ->
     db.commit()
 
     return _scene_read(scene)
+
+
+@app.post("/projects/{project_id}/archive", response_model=ProjectRead, tags=["projects"])
+def archive_project(project_id: str, db: Session = Depends(get_db_session)) -> ProjectRead:
+    project = db.get(db_models.Project, project_id)
+    if project is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    if project.archived_at is None:
+        project.archived_at = datetime.now(UTC)
+        db.commit()
+        db.refresh(project)
+
+    return _project_read(project)
+
+
+@app.post("/projects/{project_id}/unarchive", response_model=ProjectRead, tags=["projects"])
+def unarchive_project(project_id: str, db: Session = Depends(get_db_session)) -> ProjectRead:
+    project = db.get(db_models.Project, project_id)
+    if project is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    if project.archived_at is not None:
+        project.archived_at = None
+        db.commit()
+        db.refresh(project)
+
+    return _project_read(project)
 
 
 @app.get("/scenes", response_model=list[SceneRead], tags=["scenes"])

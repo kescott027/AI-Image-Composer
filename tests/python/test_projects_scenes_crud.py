@@ -11,6 +11,7 @@ def test_create_and_list_projects(db_client: TestClient) -> None:
     project = create_response.json()
     assert project["id"].startswith("proj_")
     assert project["name"] == "Project Alpha"
+    assert project["archived_at"] is None
 
     list_response = db_client.get("/projects")
     assert list_response.status_code == 200
@@ -94,3 +95,38 @@ def test_create_scene_bootstraps_initial_scene_spec(db_client: TestClient) -> No
     spec = spec_response.json()
     assert spec["scene"]["id"] == scene_id
     assert [layer["name"] for layer in spec["layers"]] == ["Background", "Objects", "Composite"]
+
+
+def test_archive_and_unarchive_project_flow(db_client: TestClient) -> None:
+    project = db_client.post("/projects", json={"name": "Project Archive"}).json()
+    project_id = project["id"]
+
+    archive_response = db_client.post(f"/projects/{project_id}/archive")
+    assert archive_response.status_code == 200
+    archived = archive_response.json()
+    assert archived["archived_at"] is not None
+
+    default_list = db_client.get("/projects")
+    assert default_list.status_code == 200
+    assert all(project["id"] != project_id for project in default_list.json())
+
+    include_archived = db_client.get("/projects", params={"include_archived": True})
+    assert include_archived.status_code == 200
+    assert any(project["id"] == project_id for project in include_archived.json())
+
+    blocked_scene = db_client.post(
+        "/scenes",
+        json={"project_id": project_id, "title": "Should Block"},
+    )
+    assert blocked_scene.status_code == 409
+    assert blocked_scene.json()["detail"] == "Project is archived"
+
+    unarchive_response = db_client.post(f"/projects/{project_id}/unarchive")
+    assert unarchive_response.status_code == 200
+    assert unarchive_response.json()["archived_at"] is None
+
+    create_scene_response = db_client.post(
+        "/scenes",
+        json={"project_id": project_id, "title": "Allowed Scene"},
+    )
+    assert create_scene_response.status_code == 200

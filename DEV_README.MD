@@ -144,6 +144,13 @@ Operational logging:
 - Every API response includes `X-Request-ID` (propagates incoming `x-request-id` if provided).
 - Configure log verbosity with `AIIC_LOG_LEVEL`.
 
+Project archiving:
+
+- Archive endpoint: `POST /projects/{project_id}/archive`
+- Unarchive endpoint: `POST /projects/{project_id}/unarchive`
+- `GET /projects` excludes archived projects by default.
+- Use `GET /projects?include_archived=true` to include archived projects.
+
 Secrets baseline:
 
 - `make secrets-check` validates runtime secret policy.
