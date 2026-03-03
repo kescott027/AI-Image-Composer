@@ -1,14 +1,19 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 import { createProject, listProjects, type ProjectRead } from "../api/projects";
+import { createScene } from "../api/scenes";
 import { ROUTES } from "../routes";
 
 export function ProjectListPage() {
+  const navigate = useNavigate();
   const [projects, setProjects] = useState<ProjectRead[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [feedback, setFeedback] = useState("Loading projects...");
   const [newProjectName, setNewProjectName] = useState("");
+  const [quickSceneTitle, setQuickSceneTitle] = useState("Scene 1");
+  const [quickScenePrompt, setQuickScenePrompt] = useState("");
+  const [quickSceneStyle, setQuickSceneStyle] = useState("cinematic");
 
   const loadProjects = async () => {
     setIsLoading(true);
@@ -43,6 +48,31 @@ export function ProjectListPage() {
     }
   };
 
+  const quickStartProject = async () => {
+    if (!newProjectName.trim()) {
+      setFeedback("Project name is required for quick start.");
+      return;
+    }
+
+    try {
+      const createdProject = await createProject({ name: newProjectName.trim() });
+      setProjects((current) => [createdProject, ...current]);
+
+      const createdScene = await createScene({
+        project_id: createdProject.id,
+        title: quickSceneTitle.trim() || "Scene 1",
+        overarching_prompt: quickScenePrompt.trim(),
+        style_preset: quickSceneStyle,
+      });
+      setFeedback(`Quick start ready: ${createdProject.name} / ${createdScene.title}.`);
+      setNewProjectName("");
+      navigate(ROUTES.sceneEditor(createdScene.id));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to quick start project";
+      setFeedback(`Quick start failed: ${message}`);
+    }
+  };
+
   return (
     <main className="page-wrap">
       <header className="page-header">
@@ -61,9 +91,49 @@ export function ProjectListPage() {
           onChange={(event) => setNewProjectName(event.target.value)}
           placeholder="Project name"
         />
+        <label className="field-label" htmlFor="quick-scene-title">
+          First Scene Title
+        </label>
+        <input
+          id="quick-scene-title"
+          className="text-input"
+          value={quickSceneTitle}
+          onChange={(event) => setQuickSceneTitle(event.target.value)}
+          placeholder="Scene title"
+        />
+        <label className="field-label" htmlFor="quick-scene-prompt">
+          First Scene Overarching Prompt
+        </label>
+        <textarea
+          id="quick-scene-prompt"
+          className="prompt-input"
+          value={quickScenePrompt}
+          onChange={(event) => setQuickScenePrompt(event.target.value)}
+          placeholder="Describe the full image direction..."
+          rows={3}
+        />
+        <label className="field-label" htmlFor="quick-scene-style">
+          First Scene Style Preset
+        </label>
+        <select
+          id="quick-scene-style"
+          className="prompt-select"
+          value={quickSceneStyle}
+          onChange={(event) => setQuickSceneStyle(event.target.value)}
+        >
+          <option value="cinematic">cinematic</option>
+          <option value="illustration">illustration</option>
+          <option value="photoreal">photoreal</option>
+          <option value="minimal">minimal</option>
+          <option value="storybook">storybook</option>
+          <option value="default">default</option>
+        </select>
         <div className="tool-row">
           <button type="button" className="button-link" onClick={() => void createNewProject()}>
             Create Project
+          </button>
+          <button type="button" className="button-link" onClick={() => void quickStartProject()}>
+            Quick Start Composer
           </button>
           <button
             type="button"
