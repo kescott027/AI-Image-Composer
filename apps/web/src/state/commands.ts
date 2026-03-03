@@ -181,6 +181,7 @@ export function setRefineStrengthCommand(refineStrength: number): SceneCommand {
 export function addLayerCommand(
   name: string,
   type: "BACKGROUND" | "OBJECT" | "MASK" | "COMPOSITE" | "ZONE" = "OBJECT",
+  options?: { layerId?: string },
 ): SceneCommand {
   return {
     name: "ADD_LAYER",
@@ -188,7 +189,7 @@ export function addLayerCommand(
       const next = cloneSceneSpec(sceneSpec);
       const maxOrder = next.layers.reduce((highest, layer) => Math.max(highest, layer.order), 0);
       next.layers.push({
-        id: createId("layer"),
+        id: options?.layerId?.trim() || createId("layer"),
         type,
         name,
         order: maxOrder + 1,

@@ -36,6 +36,7 @@ import {
   mapSketchArtifactCandidatesByObjectId,
 } from "../state/jobArtifacts";
 import {
+  addLayerCommand,
   addObjectCommand,
   addZoneLassoCommand,
   addZoneRectCommand,
@@ -89,6 +90,10 @@ const OBJECT_PRESETS = [
 
 function createObjectId() {
   return `obj_${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function createLayerId() {
+  return `layer_${Math.random().toString(36).slice(2, 10)}`;
 }
 
 function SceneEditorShell({ sceneId }: { sceneId: string }) {
@@ -525,9 +530,11 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
     if (!objectLayer) {
       return;
     }
+    const layerId = createLayerId();
     const objectId = createObjectId();
+    executeCommand(addLayerCommand(`${preset.label} Layer`, "OBJECT", { layerId }));
     executeCommand(
-      addObjectCommand(objectLayer.id, preset.name, {
+      addObjectCommand(layerId, preset.name, {
         objectId,
         kind: preset.kind,
         prompt: preset.prompt,
@@ -537,7 +544,7 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
     );
     setSelectedObjectId(objectId);
     setJobFeedback(
-      `${preset.label} added. Generate wireframe to place and anchor it in the scene.`,
+      `${preset.label} added on its own layer. Generate wireframe to place and anchor it in the scene.`,
     );
   };
 
