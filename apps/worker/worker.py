@@ -396,8 +396,9 @@ def _render_zone_composite(
         zone_x, zone_y, zone_width, zone_height = _zone_bounds(zone_payload, width, height)
         zone_canvas = Image.new("RGBA", (zone_width, zone_height), (0, 0, 0, 0))
 
+        selection_mode = zone_payload.get("selection_mode")
         included_object_ids = zone_payload.get("included_object_ids")
-        if isinstance(included_object_ids, list):
+        if selection_mode == "MANUAL" and isinstance(included_object_ids, list):
             zone_object_ids = [
                 object_id
                 for object_id in included_object_ids
@@ -405,7 +406,7 @@ def _render_zone_composite(
             ]
         else:
             zone_object_ids = []
-        if not zone_object_ids:
+        if selection_mode != "MANUAL" or not zone_object_ids:
             zone_object_ids = _infer_zone_object_ids((zone_x, zone_y, zone_width, zone_height), ordered_objects)
         zone_object_set = set(zone_object_ids)
         relation_ids = _zone_relation_ids(scene_spec, zone_object_set)
@@ -473,6 +474,7 @@ def _render_zone_composite(
                     "job_id": job.id,
                     "zone_id": zone_id,
                     "zone_name": zone_name,
+                    "selection_mode": selection_mode if isinstance(selection_mode, str) else "AUTO",
                     "included_object_ids": zone_object_ids,
                     "relation_ids": relation_ids,
                     "rendered_object_count": rendered_object_count,

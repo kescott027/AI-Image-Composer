@@ -110,6 +110,7 @@ export interface SceneSpec {
   zones: Array<{
     id: string;
     name: string;
+    selection_mode?: "AUTO" | "MANUAL";
     shape: {
       type: "rect" | "lasso";
       x: number;

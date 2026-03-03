@@ -5,10 +5,16 @@ import {
   addObjectCommand,
   addZoneLassoCommand,
   addZoneRectCommand,
+  duplicateObjectCommand,
   moveObjectCommand,
   moveObjectZOrderCommand,
   moveLayerCommand,
+  removeObjectCommand,
+  renameObjectCommand,
   rotateObjectCommand,
+  setZoneObjectInclusionCommand,
+  setZoneSelectionModeCommand,
+  updateZoneCommand,
   setRefineStrengthCommand,
   scaleObjectCommand,
   setObjectNegativePromptCommand,
@@ -270,5 +276,101 @@ describe("scene store reducer", () => {
     expect(state.sceneSpec.zones[1]?.shape.type).toBe("lasso");
     expect(state.sceneSpec.zones[0]?.included_object_ids.length).toBe(1);
     expect(state.sceneSpec.settings.defaults.refine_strength).toBe(0.45);
+  });
+
+  it("supports object rename, duplicate, and delete lifecycle", () => {
+    let state = createInitialSceneStoreState("scene_store_object_lifecycle");
+    const objectLayer = state.sceneSpec.layers.find((layer) => layer.type === "OBJECT");
+    expect(objectLayer).toBeDefined();
+    if (!objectLayer) {
+      return;
+    }
+
+    state = sceneStoreReducer(state, {
+      type: "EXECUTE_COMMAND",
+      command: addObjectCommand(objectLayer.id, "Hero"),
+    });
+
+    const hero = state.sceneSpec.objects.find((object) => object.name === "Hero");
+    expect(hero).toBeDefined();
+    if (!hero) {
+      return;
+    }
+
+    state = sceneStoreReducer(state, {
+      type: "EXECUTE_COMMAND",
+      command: renameObjectCommand(hero.id, "Lead"),
+    });
+    expect(state.sceneSpec.objects[0]?.name).toBe("Lead");
+
+    state = sceneStoreReducer(state, {
+      type: "EXECUTE_COMMAND",
+      command: duplicateObjectCommand(hero.id),
+    });
+    expect(state.sceneSpec.objects).toHaveLength(2);
+    expect(state.sceneSpec.objects.some((object) => object.name.startsWith("Lead Copy"))).toBe(true);
+
+    state = sceneStoreReducer(state, {
+      type: "EXECUTE_COMMAND",
+      command: removeObjectCommand(hero.id),
+    });
+    expect(state.sceneSpec.objects).toHaveLength(1);
+    expect(state.sceneSpec.objects[0]?.name.startsWith("Lead Copy")).toBe(true);
+  });
+
+  it("supports zone edits and manual include/exclude object assignment", () => {
+    let state = createInitialSceneStoreState("scene_store_zone_manage");
+    const objectLayer = state.sceneSpec.layers.find((layer) => layer.type === "OBJECT");
+    expect(objectLayer).toBeDefined();
+    if (!objectLayer) {
+      return;
+    }
+
+    state = sceneStoreReducer(state, {
+      type: "EXECUTE_COMMAND",
+      command: addObjectCommand(objectLayer.id, "Obj A"),
+    });
+    state = sceneStoreReducer(state, {
+      type: "EXECUTE_COMMAND",
+      command: addObjectCommand(objectLayer.id, "Obj B"),
+    });
+
+    state = sceneStoreReducer(state, {
+      type: "EXECUTE_COMMAND",
+      command: addZoneRectCommand("Zone 1", 40, 50, 200, 120),
+    });
+    const zone = state.sceneSpec.zones[0];
+    expect(zone).toBeDefined();
+    if (!zone) {
+      return;
+    }
+
+    state = sceneStoreReducer(state, {
+      type: "EXECUTE_COMMAND",
+      command: updateZoneCommand(zone.id, { name: "Primary Zone", x: 60, y: 65, width: 180, height: 115 }),
+    });
+    const updatedZone = state.sceneSpec.zones.find((candidate) => candidate.id === zone.id);
+    expect(updatedZone?.name).toBe("Primary Zone");
+    expect(updatedZone?.shape.x).toBe(60);
+    expect(updatedZone?.shape.width).toBe(180);
+
+    const firstObject = state.sceneSpec.objects[0];
+    expect(firstObject).toBeDefined();
+    if (!firstObject) {
+      return;
+    }
+
+    state = sceneStoreReducer(state, {
+      type: "EXECUTE_COMMAND",
+      command: setZoneSelectionModeCommand(zone.id, "MANUAL"),
+    });
+    state = sceneStoreReducer(state, {
+      type: "EXECUTE_COMMAND",
+      command: setZoneObjectInclusionCommand(zone.id, firstObject.id, false),
+    });
+
+    const manualZone = state.sceneSpec.zones.find((candidate) => candidate.id === zone.id);
+    expect(manualZone?.selection_mode).toBe("MANUAL");
+    expect(manualZone?.included_object_ids.includes(firstObject.id)).toBe(false);
   });
 });

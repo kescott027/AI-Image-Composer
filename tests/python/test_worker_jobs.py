@@ -284,6 +284,7 @@ def test_process_one_job_zone_render_generates_zone_and_composite_artifacts(
                 {
                     "id": "zone_1",
                     "name": "Hero Zone",
+                    "selection_mode": "MANUAL",
                     "shape": {"type": "rect", "x": 90, "y": 60, "width": 220, "height": 180},
                     "included_object_ids": ["obj_hero"],
                 }
@@ -324,6 +325,17 @@ def test_process_one_job_zone_render_generates_zone_and_composite_artifacts(
         }
         assert "COMPOSITE" in artifact_subtypes
         assert "ZONE" in artifact_subtypes
+        zone_artifact = next(
+            (
+                session.get(db_models.Artifact, artifact_id)
+                for artifact_id in updated.output_artifact_ids
+                if session.get(db_models.Artifact, artifact_id) is not None
+                and session.get(db_models.Artifact, artifact_id).subtype == "ZONE"
+            ),
+            None,
+        )
+        assert zone_artifact is not None
+        assert zone_artifact.metadata_json["selection_mode"] == "MANUAL"
 
     Base.metadata.drop_all(bind=engine)
     engine.dispose()

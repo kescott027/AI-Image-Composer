@@ -37,6 +37,8 @@ interface ZoneBounds {
   height: number;
 }
 
+type ZoneSelectionMode = "AUTO" | "MANUAL";
+
 function objectBounds(sceneSpec: SceneSpec): Array<{ id: string } & ZoneBounds> {
   return sceneSpec.objects.map((object, index) => {
     const transform = object.transform ?? {
@@ -68,6 +70,61 @@ function inferZoneObjectIds(sceneSpec: SceneSpec, bounds: ZoneBounds): string[] 
   return objectBounds(sceneSpec)
     .filter((entry) => intersects(bounds, entry))
     .map((entry) => entry.id);
+}
+
+function zoneBoundsFromShape(shape: SceneSpec["zones"][number]["shape"]): ZoneBounds {
+  return {
+    x: shape.x,
+    y: shape.y,
+    width: Math.max(1, shape.width),
+    height: Math.max(1, shape.height),
+  };
+}
+
+function zoneSelectionMode(zone: SceneSpec["zones"][number]): ZoneSelectionMode {
+  return zone.selection_mode === "MANUAL" ? "MANUAL" : "AUTO";
+}
+
+function clampZoneBounds(bounds: ZoneBounds): ZoneBounds {
+  return {
+    x: Number(bounds.x.toFixed(2)),
+    y: Number(bounds.y.toFixed(2)),
+    width: Number(Math.max(1, bounds.width).toFixed(2)),
+    height: Number(Math.max(1, bounds.height).toFixed(2)),
+  };
+}
+
+function transformedLassoPoints(
+  points: Array<{ x: number; y: number }>,
+  from: ZoneBounds,
+  to: ZoneBounds,
+): Array<{ x: number; y: number }> {
+  if (points.length < 3) {
+    return points;
+  }
+  const scaleX = from.width <= 0 ? 1 : to.width / from.width;
+  const scaleY = from.height <= 0 ? 1 : to.height / from.height;
+  return points.map((point) => ({
+    x: Number((to.x + (point.x - from.x) * scaleX).toFixed(2)),
+    y: Number((to.y + (point.y - from.y) * scaleY).toFixed(2)),
+  }));
+}
+
+function refreshAutoZoneMembership(sceneSpec: SceneSpec): void {
+  sceneSpec.zones = sceneSpec.zones.map((zone) => {
+    if (zoneSelectionMode(zone) === "MANUAL") {
+      const validObjectIds = new Set(sceneSpec.objects.map((object) => object.id));
+      return {
+        ...zone,
+        included_object_ids: zone.included_object_ids.filter((objectId) => validObjectIds.has(objectId)),
+      };
+    }
+    return {
+      ...zone,
+      included_object_ids: inferZoneObjectIds(sceneSpec, zoneBoundsFromShape(zone.shape)),
+      selection_mode: "AUTO",
+    };
+  });
 }
 
 export function setOverarchingPromptCommand(prompt: string): SceneCommand {
@@ -224,6 +281,92 @@ export function addObjectCommand(layerId: string, name: string): SceneCommand {
           height: 84,
         },
       });
+      refreshAutoZoneMembership(next);
+      return next;
+    },
+  };
+}
+
+export function renameObjectCommand(objectId: string, name: string): SceneCommand {
+  return {
+    name: "RENAME_OBJECT",
+    apply(sceneSpec) {
+      const next = cloneSceneSpec(sceneSpec);
+      const trimmedName = name.trim();
+      if (!trimmedName) {
+        return next;
+      }
+      next.objects = next.objects.map((object) =>
+        object.id === objectId ? { ...object, name: trimmedName } : object,
+      );
+      return next;
+    },
+  };
+}
+
+export function duplicateObjectCommand(objectId: string): SceneCommand {
+  return {
+    name: "DUPLICATE_OBJECT",
+    apply(sceneSpec) {
+      const next = cloneSceneSpec(sceneSpec);
+      const original = next.objects.find((object) => object.id === objectId);
+      if (!original) {
+        return next;
+      }
+
+      const siblingNames = new Set(next.objects.map((object) => object.name));
+      let candidateName = `${original.name} Copy`;
+      let copyIndex = 2;
+      while (siblingNames.has(candidateName)) {
+        candidateName = `${original.name} Copy ${copyIndex}`;
+        copyIndex += 1;
+      }
+
+      const nextTransform = original.transform
+        ? {
+            ...original.transform,
+            x: Number((original.transform.x + 16).toFixed(2)),
+            y: Number((original.transform.y + 16).toFixed(2)),
+          }
+        : undefined;
+
+      const duplicate = {
+        ...original,
+        id: createId("obj"),
+        name: candidateName,
+        transform: nextTransform,
+      };
+      next.objects.push(duplicate);
+      if (duplicate.transform) {
+        normalizeLayerZIndex(next, duplicate.layer_id);
+      }
+      refreshAutoZoneMembership(next);
+      return next;
+    },
+  };
+}
+
+export function removeObjectCommand(objectId: string): SceneCommand {
+  return {
+    name: "REMOVE_OBJECT",
+    apply(sceneSpec) {
+      const next = cloneSceneSpec(sceneSpec);
+      const existing = next.objects.find((object) => object.id === objectId);
+      if (!existing) {
+        return next;
+      }
+
+      next.objects = next.objects.filter((object) => object.id !== objectId);
+      next.relations = next.relations.filter(
+        (relation) =>
+          relation.subject_object_id !== objectId && relation.object_object_id !== objectId,
+      );
+      next.zones = next.zones.map((zone) => ({
+        ...zone,
+        included_object_ids: zone.included_object_ids.filter((candidate) => candidate !== objectId),
+      }));
+      normalizeLayerZIndex(next, existing.layer_id);
+      refreshAutoZoneMembership(next);
       return next;
     },
   };
@@ -327,15 +470,16 @@ export function addZoneRectCommand(
     name: "ADD_ZONE_RECT",
     apply(sceneSpec) {
       const next = cloneSceneSpec(sceneSpec);
-      const normalizedBounds = {
+      const normalizedBounds = clampZoneBounds({
         x,
         y,
         width: Math.max(1, width),
         height: Math.max(1, height),
-      };
+      });
       next.zones.push({
         id: createId("zone"),
         name,
+        selection_mode: options?.includedObjectIds ? "MANUAL" : "AUTO",
         shape: {
           type: "rect",
           ...normalizedBounds,
@@ -372,26 +516,25 @@ export function addZoneLassoCommand(
       const maxX = Math.max(...xs);
       const minY = Math.min(...ys);
       const maxY = Math.max(...ys);
+      const normalizedBounds = clampZoneBounds({
+        x: minX,
+        y: minY,
+        width: Math.max(1, maxX - minX),
+        height: Math.max(1, maxY - minY),
+      });
 
       next.zones.push({
         id: createId("zone"),
         name,
+        selection_mode: options?.includedObjectIds ? "MANUAL" : "AUTO",
         shape: {
           type: "lasso",
-          x: minX,
-          y: minY,
-          width: Math.max(1, maxX - minX),
-          height: Math.max(1, maxY - minY),
+          ...normalizedBounds,
           points,
         },
         included_object_ids:
           options?.includedObjectIds ??
-          inferZoneObjectIds(next, {
-            x: minX,
-            y: minY,
-            width: Math.max(1, maxX - minX),
-            height: Math.max(1, maxY - minY),
-          }),
+          inferZoneObjectIds(next, normalizedBounds),
         guidance_prompt: options?.guidancePrompt ?? "",
         negative_prompt: options?.negativePrompt ?? "",
       });
@@ -406,6 +549,120 @@ export function removeZoneCommand(zoneId: string): SceneCommand {
     apply(sceneSpec) {
       const next = cloneSceneSpec(sceneSpec);
       next.zones = next.zones.filter((zone) => zone.id !== zoneId);
+      return next;
+    },
+  };
+}
+
+export function updateZoneCommand(
+  zoneId: string,
+  updates: {
+    name?: string;
+    x?: number;
+    y?: number;
+    width?: number;
+    height?: number;
+    guidancePrompt?: string;
+    negativePrompt?: string;
+  },
+): SceneCommand {
+  return {
+    name: "UPDATE_ZONE",
+    apply(sceneSpec) {
+      const next = cloneSceneSpec(sceneSpec);
+      const zone = next.zones.find((candidate) => candidate.id === zoneId);
+      if (!zone) {
+        return next;
+      }
+
+      if (typeof updates.name === "string" && updates.name.trim()) {
+        zone.name = updates.name.trim();
+      }
+      if (typeof updates.guidancePrompt === "string") {
+        zone.guidance_prompt = updates.guidancePrompt;
+      }
+      if (typeof updates.negativePrompt === "string") {
+        zone.negative_prompt = updates.negativePrompt;
+      }
+
+      const fromBounds = zoneBoundsFromShape(zone.shape);
+      const requestedBounds = clampZoneBounds({
+        x: updates.x ?? fromBounds.x,
+        y: updates.y ?? fromBounds.y,
+        width: updates.width ?? fromBounds.width,
+        height: updates.height ?? fromBounds.height,
+      });
+      zone.shape.x = requestedBounds.x;
+      zone.shape.y = requestedBounds.y;
+      zone.shape.width = requestedBounds.width;
+      zone.shape.height = requestedBounds.height;
+
+      if (zone.shape.type === "lasso" && zone.shape.points && zone.shape.points.length >= 3) {
+        zone.shape.points = transformedLassoPoints(zone.shape.points, fromBounds, requestedBounds);
+      }
+
+      if (zoneSelectionMode(zone) === "AUTO") {
+        zone.included_object_ids = inferZoneObjectIds(next, requestedBounds);
+      } else {
+        const validObjectIds = new Set(next.objects.map((object) => object.id));
+        zone.included_object_ids = zone.included_object_ids.filter((objectId) =>
+          validObjectIds.has(objectId),
+        );
+      }
+      return next;
+    },
+  };
+}
+
+export function setZoneSelectionModeCommand(
+  zoneId: string,
+  selectionMode: ZoneSelectionMode,
+): SceneCommand {
+  return {
+    name: "SET_ZONE_SELECTION_MODE",
+    apply(sceneSpec) {
+      const next = cloneSceneSpec(sceneSpec);
+      const zone = next.zones.find((candidate) => candidate.id === zoneId);
+      if (!zone) {
+        return next;
+      }
+      zone.selection_mode = selectionMode;
+      if (selectionMode === "AUTO") {
+        zone.included_object_ids = inferZoneObjectIds(next, zoneBoundsFromShape(zone.shape));
+      } else {
+        const validObjectIds = new Set(next.objects.map((object) => object.id));
+        zone.included_object_ids = zone.included_object_ids.filter((objectId) =>
+          validObjectIds.has(objectId),
+        );
+      }
+      return next;
+    },
+  };
+}
+
+export function setZoneObjectInclusionCommand(
+  zoneId: string,
+  objectId: string,
+  included: boolean,
+): SceneCommand {
+  return {
+    name: "SET_ZONE_OBJECT_INCLUSION",
+    apply(sceneSpec) {
+      const next = cloneSceneSpec(sceneSpec);
+      const zone = next.zones.find((candidate) => candidate.id === zoneId);
+      const objectExists = next.objects.some((object) => object.id === objectId);
+      if (!zone || !objectExists) {
+        return next;
+      }
+
+      zone.selection_mode = "MANUAL";
+      const existing = new Set(zone.included_object_ids);
+      if (included) {
+        existing.add(objectId);
+      } else {
+        existing.delete(objectId);
+      }
+      zone.included_object_ids = Array.from(existing);
       return next;
     },
   };
@@ -429,6 +686,7 @@ export function moveObjectCommand(objectId: string, deltaX: number, deltaY: numb
           },
         };
       });
+      refreshAutoZoneMembership(next);
       return next;
     },
   };
@@ -476,6 +734,7 @@ export function scaleObjectCommand(objectId: string, multiplier: number): SceneC
           },
         };
       });
+      refreshAutoZoneMembership(next);
       return next;
     },
   };

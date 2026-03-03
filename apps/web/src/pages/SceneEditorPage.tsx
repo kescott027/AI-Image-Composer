@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import type { SceneSpec } from "@ai-image-composer/shared";
 
 import {
   buildGenerationInput,
@@ -37,8 +38,11 @@ import {
   addObjectCommand,
   addZoneLassoCommand,
   addZoneRectCommand,
+  duplicateObjectCommand,
   moveObjectCommand,
   moveObjectZOrderCommand,
+  removeObjectCommand,
+  renameObjectCommand,
   rotateObjectCommand,
   setRefineStrengthCommand,
   scaleObjectCommand,
@@ -73,8 +77,10 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
   const [isLoadingScene, setIsLoadingScene] = useState(true);
   const [isPersistingScene, setIsPersistingScene] = useState(false);
   const [isSavingVersion, setIsSavingVersion] = useState(false);
+  const [objectNameDraft, setObjectNameDraft] = useState("");
 
   const autosaveSkipRef = useRef(true);
+  const latestSceneSpecRef = useRef<SceneSpec | null>(null);
 
   const {
     sceneSpec,
@@ -118,6 +124,28 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
         .join("|"),
     [sceneSpec.relations],
   );
+  const objectSignature = useMemo(
+    () => sceneSpec.objects.map((object) => `${object.id}:${object.name}`).join("|"),
+    [sceneSpec.objects],
+  );
+
+  useEffect(() => {
+    latestSceneSpecRef.current = sceneSpec;
+  }, [sceneSpec]);
+
+  useEffect(() => {
+    if (!selectedObjectId) {
+      setObjectNameDraft("");
+      return;
+    }
+    const selected = sceneSpec.objects.find((object) => object.id === selectedObjectId);
+    if (!selected) {
+      setSelectedObjectId(null);
+      setObjectNameDraft("");
+      return;
+    }
+    setObjectNameDraft(selected.name);
+  }, [sceneSpec.objects, selectedObjectId]);
 
   const refreshSceneVersions = useCallback(async () => {
     try {
@@ -203,7 +231,11 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
     const timer = window.setTimeout(async () => {
       setRelationConflictMessage("Validating directional relations...");
       try {
-        const conflicts = await detectRelationConflicts(sceneId, sceneSpec);
+        const sceneSpecSnapshot = latestSceneSpecRef.current;
+        if (!sceneSpecSnapshot) {
+          return;
+        }
+        const conflicts = await detectRelationConflicts(sceneId, sceneSpecSnapshot);
         if (!isActive) {
           return;
         }
@@ -227,7 +259,7 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
       isActive = false;
       window.clearTimeout(timer);
     };
-  }, [isHydratedFromApi, isLoadingScene, relationSignature, sceneId, sceneSpec]);
+  }, [isHydratedFromApi, isLoadingScene, relationSignature, objectSignature, sceneId]);
 
   useEffect(() => {
     setPendingZoneName(`Zone ${sceneSpec.zones.length + 1}`);
@@ -342,6 +374,28 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
     executeCommand(addObjectCommand(objectLayer.id, `Object ${sceneSpec.objects.length + 1}`));
   };
 
+  const applyObjectRename = () => {
+    if (!selectedObject || !objectNameDraft.trim()) {
+      return;
+    }
+    executeCommand(renameObjectCommand(selectedObject.id, objectNameDraft));
+  };
+
+  const duplicateSelectedObject = () => {
+    if (!selectedObject) {
+      return;
+    }
+    executeCommand(duplicateObjectCommand(selectedObject.id));
+  };
+
+  const removeSelectedObject = () => {
+    if (!selectedObject) {
+      return;
+    }
+    executeCommand(removeObjectCommand(selectedObject.id));
+    setSelectedObjectId(null);
+  };
+
   const applyMove = (deltaX: number, deltaY: number) => {
     if (!selectedObject) {
       return;
@@ -369,6 +423,78 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
     }
     executeCommand(moveObjectZOrderCommand(selectedObject.id, direction));
   };
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const target = event.target;
+      if (
+        target instanceof HTMLElement &&
+        (target.isContentEditable ||
+          target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.tagName === "SELECT")
+      ) {
+        return;
+      }
+
+      const key = event.key.toLowerCase();
+      const withMeta = event.metaKey || event.ctrlKey;
+      const moveStep = event.shiftKey ? 24 : 12;
+
+      if (withMeta && key === "z") {
+        event.preventDefault();
+        if (event.shiftKey) {
+          redo();
+        } else {
+          undo();
+        }
+        return;
+      }
+      if (withMeta && key === "y") {
+        event.preventDefault();
+        redo();
+        return;
+      }
+      if (withMeta && key === "d" && selectedObject) {
+        event.preventDefault();
+        executeCommand(duplicateObjectCommand(selectedObject.id));
+        return;
+      }
+      if ((key === "backspace" || key === "delete") && selectedObject) {
+        event.preventDefault();
+        executeCommand(removeObjectCommand(selectedObject.id));
+        setSelectedObjectId(null);
+        return;
+      }
+      if (key === "escape") {
+        setZoneDrawingMode("NONE");
+        setPendingLassoPoints([]);
+        return;
+      }
+      if (!selectedObject) {
+        return;
+      }
+
+      if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        executeCommand(moveObjectCommand(selectedObject.id, -moveStep, 0));
+      } else if (event.key === "ArrowRight") {
+        event.preventDefault();
+        executeCommand(moveObjectCommand(selectedObject.id, moveStep, 0));
+      } else if (event.key === "ArrowUp") {
+        event.preventDefault();
+        executeCommand(moveObjectCommand(selectedObject.id, 0, -moveStep));
+      } else if (event.key === "ArrowDown") {
+        event.preventDefault();
+        executeCommand(moveObjectCommand(selectedObject.id, 0, moveStep));
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [executeCommand, redo, selectedObject, undo]);
 
   const submitGenerationJob = async (jobType: SupportedJobType) => {
     if (jobType === "SKETCH" && !selectedObject) {
@@ -511,6 +637,27 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
                 Bring Front
               </button>
             </div>
+            <div className="tool-row object-manage-row">
+              <input
+                className="text-input object-name-input"
+                value={objectNameDraft}
+                onChange={(event) => setObjectNameDraft(event.target.value)}
+                placeholder="Selected object name"
+                disabled={!selectedObject}
+              />
+              <button type="button" className="mini-button" onClick={applyObjectRename} disabled={!selectedObject || !objectNameDraft.trim()}>
+                Rename
+              </button>
+              <button type="button" className="mini-button" onClick={duplicateSelectedObject} disabled={!selectedObject}>
+                Duplicate
+              </button>
+              <button type="button" className="mini-button" onClick={removeSelectedObject} disabled={!selectedObject}>
+                Delete
+              </button>
+            </div>
+            <p className="shortcut-hint">
+              Shortcuts: Cmd/Ctrl+Z Undo, Cmd/Ctrl+Shift+Z Redo, Cmd/Ctrl+D Duplicate, Del Remove, Arrows Move, Shift+Arrows Fast Move.
+            </p>
           </div>
           <ObjectPromptEditor selectedObject={selectedObject} onApply={applyObjectPrompt} />
           <RelationsEditor

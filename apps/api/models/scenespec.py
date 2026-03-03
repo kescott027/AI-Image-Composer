@@ -171,6 +171,7 @@ class ZoneShape(BaseModel):
 class Zone(BaseModel):
     id: str
     name: str
+    selection_mode: Literal["AUTO", "MANUAL"] = "AUTO"
     shape: ZoneShape
     included_object_ids: list[str] = Field(default_factory=list)
     guidance_prompt: str | None = ""

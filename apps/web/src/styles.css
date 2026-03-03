@@ -513,6 +513,61 @@ p {
   font-size: 0.72rem;
 }
 
+.zone-item.is-active {
+  border-color: rgba(42, 160, 106, 0.55);
+  background: rgba(42, 160, 106, 0.09);
+}
+
+.zone-select {
+  border: none;
+  background: transparent;
+  text-align: left;
+  color: inherit;
+  font: inherit;
+  padding: 0;
+  cursor: pointer;
+}
+
+.zone-edit-form {
+  margin-top: 0.6rem;
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+  padding: 0.55rem;
+}
+
+.zone-edit-form h4 {
+  margin: 0;
+  font-size: 0.82rem;
+}
+
+.zone-bounds-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.4rem;
+}
+
+.zone-membership {
+  margin-top: 0.5rem;
+}
+
+.zone-membership-list {
+  margin: 0.35rem 0 0;
+  padding-left: 0;
+  list-style: none;
+}
+
+.zone-membership-item {
+  margin-bottom: 0.22rem;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.72rem;
+}
+
+.zone-membership-item label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
 .generation-settings {
   margin-top: 0.95rem;
   border-top: 1px dashed var(--line);
@@ -677,6 +732,22 @@ p {
   gap: 0.32rem;
   flex-wrap: wrap;
   margin-top: 0.38rem;
+}
+
+.object-manage-row {
+  align-items: center;
+}
+
+.object-name-input {
+  flex: 1;
+  min-width: 160px;
+  margin-top: 0;
+}
+
+.shortcut-hint {
+  margin-top: 0.45rem;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.69rem;
 }
 
 @media (max-width: 980px) {
