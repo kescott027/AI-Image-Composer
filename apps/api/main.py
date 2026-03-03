@@ -21,6 +21,7 @@ from apps.api.models.crud import (
 )
 from apps.api.models.jobs import JobCreate, JobRead
 from apps.api.models.scenespec import SceneSpec
+from apps.api.security.secrets import assert_runtime_secrets
 from apps.api.services.artifact_store import LocalArtifactStore
 from apps.api.services.prompt_compiler import compile_prompt_for_job
 from apps.api.services.rate_limiter import RateLimiter
@@ -51,6 +52,13 @@ def _configure_api_logger() -> logging.Logger:
 
 
 api_logger = _configure_api_logger()
+
+
+@app.on_event("startup")
+def validate_runtime_security() -> None:
+    assert_runtime_secrets()
+    env_name = os.getenv("AIIC_ENV", "development").strip().lower()
+    api_logger.info("runtime_security_validated env=%s", env_name)
 
 
 def reset_rate_limiter_state() -> None:

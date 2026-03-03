@@ -94,6 +94,7 @@ make hooks-install
 make lint
 make format-check
 make test
+make secrets-check
 make scan
 ```
 
@@ -142,6 +143,12 @@ Operational logging:
 - Every API response includes `X-Request-ID` (propagates incoming `x-request-id` if provided).
 - Configure log verbosity with `AIIC_LOG_LEVEL`.
 
+Secrets baseline:
+
+- `make secrets-check` validates runtime secret policy.
+- In `AIIC_ENV=production|prod`, `AIIC_APP_SECRET_KEY` is required and weak placeholder values are rejected.
+- Track key rotation with `AIIC_APP_SECRET_KEY_VERSION` and provider rotation bundles with `AIIC_PROVIDER_KEYSET_VERSION`.
+
 ## Self-Serve Scripts
 
 All primary workflows are wrapped in scripts under `/scripts` and exposed via `make` and `pnpm`.
@@ -152,6 +159,7 @@ All primary workflows are wrapped in scripts under `/scripts` and exposed via `m
 - [lint.sh](/Users/kylescott/git/AI-Image-Composer/scripts/lint.sh): JS + Python linting
 - [format.sh](/Users/kylescott/git/AI-Image-Composer/scripts/format.sh): format write/check
 - [test.sh](/Users/kylescott/git/AI-Image-Composer/scripts/test.sh): JS + Python tests
+- [secrets-check.sh](/Users/kylescott/git/AI-Image-Composer/scripts/secrets-check.sh): runtime secret baseline validation
 - [scan.sh](/Users/kylescott/git/AI-Image-Composer/scripts/scan.sh): dependency + static security scans
 - [ci.sh](/Users/kylescott/git/AI-Image-Composer/scripts/ci.sh): local CI gate
 - [hooks-install.sh](/Users/kylescott/git/AI-Image-Composer/scripts/hooks-install.sh): install local git hooks
@@ -186,6 +194,7 @@ Reference: [Makefile](/Users/kylescott/git/AI-Image-Composer/Makefile)
 - `make format`
 - `make format-check`
 - `make test`
+- `make secrets-check`
 - `make scan`
 - `make ci`
 - `make hooks-install`

@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+./scripts/secrets-check.sh
+
 pnpm audit --audit-level=high
 uv run pip-audit
 
