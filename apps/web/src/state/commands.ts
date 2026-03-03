@@ -30,6 +30,11 @@ function normalizeLayerZIndex(sceneSpec: SceneSpec, layerId: string) {
   });
 }
 
+function isObjectAnchored(object: SceneSpec["objects"][number]): boolean {
+  const anchored = object.metadata?.anchored;
+  return anchored === true;
+}
+
 interface ZoneBounds {
   x: number;
   y: number;
@@ -253,7 +258,18 @@ export function moveLayerCommand(layerId: string, direction: "UP" | "DOWN"): Sce
   };
 }
 
-export function addObjectCommand(layerId: string, name: string): SceneCommand {
+export function addObjectCommand(
+  layerId: string,
+  name: string,
+  options?: {
+    objectId?: string;
+    kind?: string;
+    prompt?: string;
+    negativePrompt?: string;
+    width?: number;
+    height?: number;
+  },
+): SceneCommand {
   return {
     name: "ADD_OBJECT",
     apply(sceneSpec) {
@@ -268,12 +284,12 @@ export function addObjectCommand(layerId: string, name: string): SceneCommand {
         .filter((object) => object.layer_id === layerId)
         .reduce((highest, object) => Math.max(highest, object.transform?.z_index ?? -1), -1);
       next.objects.push({
-        id: createId("obj"),
+        id: options?.objectId?.trim() || createId("obj"),
         layer_id: layerId,
         name,
-        kind: "prop",
-        prompt: "",
-        negative_prompt: "",
+        kind: options?.kind ?? "prop",
+        prompt: options?.prompt ?? "",
+        negative_prompt: options?.negativePrompt ?? "",
         transform: {
           x: 80 + objectIndex * 24,
           y: 90 + objectIndex * 20,
@@ -282,11 +298,33 @@ export function addObjectCommand(layerId: string, name: string): SceneCommand {
           rotation_deg: 0,
           z_index: maxZ + 1,
           anchor: "top_left",
-          width: 120,
-          height: 84,
+          width: Math.max(1, options?.width ?? 120),
+          height: Math.max(1, options?.height ?? 84),
         },
       });
       refreshAutoZoneMembership(next);
+      return next;
+    },
+  };
+}
+
+export function setObjectAnchoredCommand(objectId: string, anchored: boolean): SceneCommand {
+  return {
+    name: anchored ? "ANCHOR_OBJECT" : "UNANCHOR_OBJECT",
+    apply(sceneSpec) {
+      const next = cloneSceneSpec(sceneSpec);
+      next.objects = next.objects.map((object) => {
+        if (object.id !== objectId) {
+          return object;
+        }
+        return {
+          ...object,
+          metadata: {
+            ...object.metadata,
+            anchored,
+          },
+        };
+      });
       return next;
     },
   };
@@ -679,7 +717,7 @@ export function moveObjectCommand(objectId: string, deltaX: number, deltaY: numb
     apply(sceneSpec) {
       const next = cloneSceneSpec(sceneSpec);
       next.objects = next.objects.map((object) => {
-        if (object.id !== objectId || !object.transform) {
+        if (object.id !== objectId || !object.transform || isObjectAnchored(object)) {
           return object;
         }
         return {
@@ -703,7 +741,7 @@ export function rotateObjectCommand(objectId: string, deltaDeg: number): SceneCo
     apply(sceneSpec) {
       const next = cloneSceneSpec(sceneSpec);
       next.objects = next.objects.map((object) => {
-        if (object.id !== objectId || !object.transform) {
+        if (object.id !== objectId || !object.transform || isObjectAnchored(object)) {
           return object;
         }
         return {
@@ -725,7 +763,7 @@ export function scaleObjectCommand(objectId: string, multiplier: number): SceneC
     apply(sceneSpec) {
       const next = cloneSceneSpec(sceneSpec);
       next.objects = next.objects.map((object) => {
-        if (object.id !== objectId || !object.transform) {
+        if (object.id !== objectId || !object.transform || isObjectAnchored(object)) {
           return object;
         }
         const nextScaleX = Math.min(

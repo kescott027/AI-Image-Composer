@@ -2,10 +2,12 @@ import { describe, expect, it } from "vitest";
 
 import type { JobRead } from "../../apps/web/src/api/jobs";
 import {
+  mapLatestBlockingSketchArtifactId,
   mapLatestFinalCompositeArtifactId,
   mapLatestObjectRenderArtifactsByObjectId,
-  mapRecentSuccessfulArtifacts,
   mapLatestSketchArtifactsByObjectId,
+  mapRecentSuccessfulArtifacts,
+  mapSketchArtifactCandidatesByObjectId,
 } from "../../apps/web/src/state/jobArtifacts";
 
 function createJob(overrides: Partial<JobRead>): JobRead {
@@ -87,6 +89,80 @@ describe("mapLatestSketchArtifactsByObjectId", () => {
     const map = mapLatestSketchArtifactsByObjectId(jobs);
 
     expect(map).toEqual({});
+  });
+});
+
+describe("mapLatestBlockingSketchArtifactId", () => {
+  it("returns latest scene-level sketch artifact", () => {
+    const jobs: JobRead[] = [
+      createJob({
+        id: "job_obj",
+        input: { target_object_id: "obj_hero" },
+        output_artifact_ids: ["art_obj"],
+        created_at: "2026-03-02T09:00:00Z",
+      }),
+      createJob({
+        id: "job_block_old",
+        input: {},
+        output_artifact_ids: ["art_block_old"],
+        created_at: "2026-03-02T10:00:00Z",
+      }),
+      createJob({
+        id: "job_block_new",
+        input: {},
+        output_artifact_ids: ["art_block_new"],
+        created_at: "2026-03-02T11:00:00Z",
+      }),
+    ];
+
+    expect(mapLatestBlockingSketchArtifactId(jobs)).toBe("art_block_new");
+  });
+
+  it("returns null when no scene-level sketch artifacts are present", () => {
+    const jobs: JobRead[] = [
+      createJob({
+        id: "job_obj",
+        input: { target_object_id: "obj_hero" },
+        output_artifact_ids: ["art_obj"],
+      }),
+    ];
+    expect(mapLatestBlockingSketchArtifactId(jobs)).toBeNull();
+  });
+});
+
+describe("mapSketchArtifactCandidatesByObjectId", () => {
+  it("returns latest candidates per object in descending time order", () => {
+    const jobs: JobRead[] = [
+      createJob({
+        id: "job_1",
+        input: { target_object_id: "obj_hero" },
+        output_artifact_ids: ["art_1"],
+        created_at: "2026-03-02T10:00:00Z",
+      }),
+      createJob({
+        id: "job_2",
+        input: { target_object_id: "obj_hero" },
+        output_artifact_ids: ["art_2"],
+        created_at: "2026-03-02T11:00:00Z",
+      }),
+      createJob({
+        id: "job_3",
+        input: { target_object_id: "obj_hero" },
+        output_artifact_ids: ["art_3"],
+        created_at: "2026-03-02T12:00:00Z",
+      }),
+      createJob({
+        id: "job_other",
+        input: { target_object_id: "obj_table" },
+        output_artifact_ids: ["art_table"],
+        created_at: "2026-03-02T09:00:00Z",
+      }),
+    ];
+
+    expect(mapSketchArtifactCandidatesByObjectId(jobs, 2)).toEqual({
+      obj_hero: ["art_3", "art_2"],
+      obj_table: ["art_table"],
+    });
   });
 });
 

@@ -86,12 +86,19 @@ def compile_prompt_for_job(
     hints = _relation_hints(scene_spec, target_object_id, object_lookup)
 
     if job_type == "SKETCH":
-        segments = [
-            object_name,
-            object_prompt,
-            f"style {style_preset}" if style_preset else "",
-            " ; ".join(hints[:2]),
-        ]
+        if target_object_id:
+            segments = [
+                object_name,
+                object_prompt,
+                f"style {style_preset}" if style_preset else "",
+                " ; ".join(hints[:2]),
+            ]
+        else:
+            segments = [
+                scene_prompt,
+                "scene composition blocking pass",
+                f"style {style_preset}" if style_preset else "",
+            ]
     elif job_type == "OBJECT_RENDER":
         segments = [
             scene_prompt,

@@ -8,6 +8,7 @@ import type { ZoneDrawingMode } from "./ZoneEditor";
 interface SceneCanvasProps {
   sceneSpec: SceneSpec;
   selectedObjectId: string | null;
+  blockingArtifactId?: string | null;
   wireframeArtifactsByObjectId?: Record<string, string>;
   objectRenderArtifactsByObjectId?: Record<string, string>;
   finalCompositeArtifactId?: string | null;
@@ -15,6 +16,7 @@ interface SceneCanvasProps {
   pendingLassoPoints?: Array<{ x: number; y: number }>;
   onCreateRectZone?: (zone: { x: number; y: number; width: number; height: number }) => void;
   onAddLassoPoint?: (point: { x: number; y: number }) => void;
+  onMoveObject?: (objectId: string, deltaX: number, deltaY: number) => void;
   onSelectObject: (objectId: string | null) => void;
 }
 
@@ -34,6 +36,7 @@ interface CanvasObject {
   height: number;
   rotationDeg: number;
   zIndex: number;
+  anchored: boolean;
 }
 
 function toCanvasObjects(sceneSpec: SceneSpec): CanvasObject[] {
@@ -60,6 +63,7 @@ function toCanvasObjects(sceneSpec: SceneSpec): CanvasObject[] {
       height: transform.height * transform.scale_y,
       rotationDeg: transform.rotation_deg,
       zIndex: transform.z_index,
+      anchored: object.metadata?.anchored === true,
     };
   });
 }
@@ -67,6 +71,7 @@ function toCanvasObjects(sceneSpec: SceneSpec): CanvasObject[] {
 export function SceneCanvas({
   sceneSpec,
   selectedObjectId,
+  blockingArtifactId = null,
   wireframeArtifactsByObjectId = {},
   objectRenderArtifactsByObjectId = {},
   finalCompositeArtifactId = null,
@@ -74,6 +79,7 @@ export function SceneCanvas({
   pendingLassoPoints = [],
   onCreateRectZone,
   onAddLassoPoint,
+  onMoveObject,
   onSelectObject,
 }: SceneCanvasProps) {
   const canvasRef = useRef<HTMLDivElement | null>(null);
@@ -81,6 +87,10 @@ export function SceneCanvas({
   const [offset, setOffset] = useState({ x: 30, y: 30 });
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState<{ x: number; y: number } | null>(null);
+  const [dragState, setDragState] = useState<{
+    objectId: string;
+    point: { x: number; y: number };
+  } | null>(null);
   const [rectDraft, setRectDraft] = useState<{
     start: { x: number; y: number };
     current: { x: number; y: number };
@@ -159,7 +169,25 @@ export function SceneCanvas({
       return;
     }
 
-    if ((event.target as HTMLElement).closest("[data-object-id]")) {
+    const objectNode = (event.target as HTMLElement).closest("[data-object-id]");
+    if (objectNode) {
+      const objectId = objectNode.getAttribute("data-object-id");
+      if (!objectId) {
+        return;
+      }
+      const selectedObject = canvasObjects.find((object) => object.id === objectId);
+      if (!selectedObject) {
+        return;
+      }
+      onSelectObject(objectId);
+      const isAnchored = selectedObject.anchored;
+      if (!isAnchored && zoneDrawingMode === "NONE" && onMoveObject) {
+        const point = pointerToScene(event);
+        if (point) {
+          setDragState({ objectId, point });
+          (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+        }
+      }
       return;
     }
     onSelectObject(null);
@@ -186,6 +214,20 @@ export function SceneCanvas({
       return;
     }
 
+    if (dragState && zoneDrawingMode === "NONE") {
+      const point = pointerToScene(event);
+      if (!point || !onMoveObject) {
+        return;
+      }
+      const deltaX = point.x - dragState.point.x;
+      const deltaY = point.y - dragState.point.y;
+      if (Math.abs(deltaX) >= 0.5 || Math.abs(deltaY) >= 0.5) {
+        onMoveObject(dragState.objectId, Number(deltaX.toFixed(2)), Number(deltaY.toFixed(2)));
+        setDragState({ objectId: dragState.objectId, point });
+      }
+      return;
+    }
+
     if (!isPanning || !panStart) {
       return;
     }
@@ -193,6 +235,11 @@ export function SceneCanvas({
   };
 
   const stopPanning: PointerEventHandler<HTMLDivElement> = () => {
+    if (dragState) {
+      setDragState(null);
+      return;
+    }
+
     if (zoneDrawingMode === "RECT" && rectDraft) {
       const x = Math.min(rectDraft.start.x, rectDraft.current.x);
       const y = Math.min(rectDraft.start.y, rectDraft.current.y);
@@ -246,6 +293,18 @@ export function SceneCanvas({
               rx={12}
               className="canvas-board"
             />
+            {blockingArtifactId ? (
+              <image
+                href={`/api/artifacts/${blockingArtifactId}`}
+                x={0}
+                y={0}
+                width={CANVAS_WIDTH}
+                height={CANVAS_HEIGHT}
+                preserveAspectRatio="none"
+                opacity={0.6}
+                pointerEvents="none"
+              />
+            ) : null}
 
             {sceneSpec.zones.map((zone) => (
               <g key={zone.id}>
@@ -354,6 +413,11 @@ export function SceneCanvas({
                     <text x={10} y={42} className="canvas-layer-label">
                       {layerInfo.name}
                     </text>
+                    {object.anchored ? (
+                      <text x={10} y={60} className="canvas-layer-label">
+                        anchored
+                      </text>
+                    ) : null}
                   </g>
                 </g>
               );
@@ -378,6 +442,7 @@ export function SceneCanvas({
         <span>Objects: {canvasObjects.length}</span>
         <span>Renders: {Object.keys(objectRenderArtifactsByObjectId).length}</span>
         <span>Wireframes: {Object.keys(wireframeArtifactsByObjectId).length}</span>
+        <span>Blocking: {blockingArtifactId ? "on" : "off"}</span>
         <span>Composite: {finalCompositeArtifactId ? "on" : "off"}</span>
         <span>Selection: {selectedObjectId ?? "none"}</span>
       </div>

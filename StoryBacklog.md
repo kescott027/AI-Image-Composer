@@ -59,17 +59,17 @@ project -> overarching prompt -> blocking layer -> object wireframes (iterate/se
 
 ### Stories for the Requested User Path
 
-1. **Story 113** `[NOT STARTED]` Guided Project Bootstrap Flow (new project + overarching prompt first-run path)
-2. **Story 114** `[NOT STARTED]` Blocking Layer Generation from Overarching Prompt (single action + regenerable)
-3. **Story 115** `[NOT STARTED]` Entity/Object Creation Presets (person, table, cake + freeform object type)
-4. **Story 116** `[NOT STARTED]` Object Wireframe Generation per Object Prompt on New Layer
-5. **Story 117** `[NOT STARTED]` One-Button Wireframe Regeneration Cycle (quick cycle 2-5 passes)
-6. **Story 118** `[NOT STARTED]` Multi-Variant Wireframe Batch Generation (`n` candidates) + Candidate Picker
-7. **Story 119** `[NOT STARTED]` Drag/Place Workflow with Explicit Anchor Action
-8. **Story 120** `[NOT STARTED]` Anchor Semantics Enforcement (anchored objects remain fixed during regenerate/render)
-9. **Story 121** `[NOT STARTED]` Ordered Layer Render Orchestrator (bottom-to-top render queue from current scene state)
+1. **Story 113** `[IN PROGRESS]` Guided Project Bootstrap Flow (new project + overarching prompt first-run path)
+2. **Story 114** `[IN PROGRESS]` Blocking Layer Generation from Overarching Prompt (single action + regenerable)
+3. **Story 115** `[IN PROGRESS]` Entity/Object Creation Presets (person, table, cake + freeform object type)
+4. **Story 116** `[IN PROGRESS]` Object Wireframe Generation per Object Prompt on New Layer
+5. **Story 117** `[IN PROGRESS]` One-Button Wireframe Regeneration Cycle (quick cycle 2-5 passes)
+6. **Story 118** `[IN PROGRESS]` Multi-Variant Wireframe Batch Generation (`n` candidates) + Candidate Picker
+7. **Story 119** `[IN PROGRESS]` Drag/Place Workflow with Explicit Anchor Action
+8. **Story 120** `[IN PROGRESS]` Anchor Semantics Enforcement (anchored objects remain fixed during regenerate/render)
+9. **Story 121** `[IN PROGRESS]` Ordered Layer Render Orchestrator (bottom-to-top render queue from current scene state)
 10. **Story 122** `[NOT STARTED]` Per-Layer Render Progress + Retry UX (clear status, fail/retry per object)
-11. **Story 123** `[NOT STARTED]` Unified Composite Pass (global consistency using overarching prompt context)
+11. **Story 123** `[IN PROGRESS]` Unified Composite Pass (global consistency using overarching prompt context)
 12. **Story 124** `[NOT STARTED]` Palette and Style Harmonization Controls (color consistency knobs + defaults)
 13. **Story 125** `[NOT STARTED]` End-to-End Acceptance Scenario: Person + Table + Birthday Cake
 14. **Story 126** `[NOT STARTED]` Release 0.5 UX Readiness Pass (professional polish, error states, loading states)

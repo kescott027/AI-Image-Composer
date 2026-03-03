@@ -116,3 +116,37 @@ def test_create_job_includes_compiled_prompt_metadata(db_client: TestClient) -> 
     assert "traveler" in metadata["compiled_prompt"].lower()
     assert "left_of" in " ".join(metadata["relation_hints"]).lower()
     assert "blurry" in metadata["compiled_negative_prompt"].lower()
+
+
+def test_create_scene_level_sketch_job_uses_overarching_prompt(db_client: TestClient) -> None:
+    scene_id = _create_scene(db_client)
+    scene_spec = {
+        "scene": {
+            "id": scene_id,
+            "title": "Blocking Prompt Scene",
+            "overarching_prompt": "A birthday party table setup in warm evening light",
+            "negative_prompt": "washed out",
+            "style_preset": "cinematic",
+        },
+        "objects": [],
+        "relations": [],
+    }
+
+    response = db_client.post(
+        "/jobs",
+        json={
+            "scene_id": scene_id,
+            "job_type": "SKETCH",
+            "input": {
+                "scene_spec": scene_spec,
+                "generation_mode": "BLOCKING",
+            },
+        },
+    )
+
+    assert response.status_code == 200
+    job = response.json()
+    metadata = job["input"]["metadata"]
+    assert "compiled_prompt" in metadata
+    assert "birthday party" in metadata["compiled_prompt"].lower()
+    assert "blocking pass" in metadata["compiled_prompt"].lower()
