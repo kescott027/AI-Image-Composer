@@ -32,3 +32,12 @@ Help me lay out the basic architecture and breakdown so I can put this informati
 into codex to begin coding it. Break down phase 0 structuring,
 
 MVP, and consecutive phases to get a viable product
+
+---
+
+Current milestone snapshot (2026-03-03):
+
+- Release 0 (MVP): complete and signed off.
+- Release 0 sign-off artifact: `docs/RELEASE_0_SIGNOFF.MD`.
+- Next milestone: Release 1 (Production Ready) with security hardening first
+  (auth, RBAC, rate limiting, compliance logging, secrets/dependency hardening).

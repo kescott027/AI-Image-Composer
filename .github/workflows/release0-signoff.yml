@@ -1,0 +1,71 @@
+name: Release 0 Sign-Off
+
+on:
+  workflow_dispatch:
+
+jobs:
+  signoff:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.7.0
+
+      - name: Setup uv + Python
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.7.8"
+          python-version: "3.12"
+          enable-cache: true
+
+      - name: Install dependencies
+        run: make setup
+
+      - name: Start Postgres
+        run: docker compose up -d postgres
+
+      - name: Apply migrations
+        run: make db-migrate
+
+      - name: Start API
+        run: |
+          uv run uvicorn apps.api.main:app --host 0.0.0.0 --port 8000 > /tmp/api.log 2>&1 &
+          echo $! > /tmp/api.pid
+
+      - name: Wait for API health
+        run: |
+          for i in {1..40}; do
+            if curl -fsS http://localhost:8000/health >/dev/null; then
+              echo "API is ready"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "API health check timed out"
+          cat /tmp/api.log || true
+          exit 1
+
+      - name: Run Release 0 happy-path validation
+        run: make iur-happy-path
+
+      - name: Stop API
+        if: always()
+        run: |
+          if [[ -f /tmp/api.pid ]]; then
+            kill "$(cat /tmp/api.pid)" || true
+          fi
+
+      - name: Stop Postgres
+        if: always()
+        run: docker compose down -v
