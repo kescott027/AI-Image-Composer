@@ -60,6 +60,21 @@ Then launch the full local stack with watchdog:
 aiic
 ```
 
+The default `aiic` behavior is detached/background startup. Use these operational commands:
+
+```bash
+aiic status
+aiic logs manager
+aiic logs api -f
+aiic stop
+```
+
+Use foreground mode only when actively debugging startup/shutdown behavior:
+
+```bash
+aiic run
+```
+
 Manual mode (without `aiic`):
 
 ```bash
@@ -111,7 +126,7 @@ All primary workflows are wrapped in scripts under `/scripts` and exposed via `m
 
 - [setup.sh](/Users/kylescott/git/AI-Image-Composer/scripts/setup.sh): install/prepare dependencies
 - [install.sh](/Users/kylescott/git/AI-Image-Composer/scripts/install.sh): prerequisite checks/install + alias setup
-- [aiic-watchdog.sh](/Users/kylescott/git/AI-Image-Composer/scripts/aiic-watchdog.sh): launch API/worker/web with watchdog + graceful shutdown
+- [aiic-watchdog.sh](/Users/kylescott/git/AI-Image-Composer/scripts/aiic-watchdog.sh): aiic manager (`start/stop/restart/status/logs/run`) with watchdog + graceful shutdown
 - [lint.sh](/Users/kylescott/git/AI-Image-Composer/scripts/lint.sh): JS + Python linting
 - [format.sh](/Users/kylescott/git/AI-Image-Composer/scripts/format.sh): format write/check
 - [test.sh](/Users/kylescott/git/AI-Image-Composer/scripts/test.sh): JS + Python tests
@@ -130,11 +145,17 @@ Reference: [Makefile](/Users/kylescott/git/AI-Image-Composer/Makefile)
 
 - `make setup`
 - `make install`
+- `make aiic`
+- `make aiic-start`
+- `make aiic-stop`
+- `make aiic-restart`
+- `make aiic-status`
+- `make aiic-logs`
+- `make aiic-run`
 - `make db-up`
 - `make db-down`
 - `make db-migrate`
 - `make db-downgrade`
-- `make aiic`
 - `make lint`
 - `make format`
 - `make format-check`

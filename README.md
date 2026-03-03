@@ -209,7 +209,22 @@ aiic
 
 `make install` checks prerequisites, installs missing dependencies when possible, installs the `aiic` shell function in `~/.zshrc` and/or `~/.bashrc`, and prepares the repo.
 
-`aiic` launches API + worker + web with a watchdog. Press `Ctrl+C` to stop and shut down gracefully.
+`aiic` now starts a background manager by default, launches API + worker + web, and opens the web UI when possible.
+
+Operational commands:
+
+```bash
+aiic status
+aiic logs manager
+aiic logs worker -f
+aiic stop
+```
+
+Foreground mode remains available when needed:
+
+```bash
+aiic run
+```
 
 1. Install dependencies and hooks
    make setup

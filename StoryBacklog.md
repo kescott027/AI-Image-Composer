@@ -89,6 +89,10 @@ Goal: security-first hardening, architecture hardening, reproducibility, observa
 27. **Story 64** `[NOT STARTED]` Persistent WebSocket Gateway Service
 28. **Story 43** `[NOT STARTED]` Streaming Progress Updates via WebSockets
 29. **Story 79** `[NOT STARTED]` Webhook System
+30. **Story 107** `[IN PROGRESS]` AIIC Process Manager UX (Background Start/Stop/Status/Logs as Primary Flow)
+31. **Story 108** `[NOT STARTED]` Linux User-Service Packaging (`systemd --user` unit + enable/disable scripts)
+32. **Story 109** `[NOT STARTED]` Desktop Launcher Packaging for Windows/macOS (taskbar/dock runnable app wrapper + clean shutdown)
+33. **Story 110** `[NOT STARTED]` Managed Window Lifecycle Control (app menu Exit + optional shutdown-on-window-close policy)
 
 ---
 
