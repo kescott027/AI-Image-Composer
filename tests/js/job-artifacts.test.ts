@@ -4,6 +4,7 @@ import type { JobRead } from "../../apps/web/src/api/jobs";
 import {
   mapLatestFinalCompositeArtifactId,
   mapLatestObjectRenderArtifactsByObjectId,
+  mapRecentSuccessfulArtifacts,
   mapLatestSketchArtifactsByObjectId,
 } from "../../apps/web/src/state/jobArtifacts";
 
@@ -216,5 +217,77 @@ describe("mapLatestFinalCompositeArtifactId", () => {
 
     const artifactId = mapLatestFinalCompositeArtifactId(jobs);
     expect(artifactId).toBe("art_refined");
+  });
+});
+
+describe("mapRecentSuccessfulArtifacts", () => {
+  it("returns recent successful artifacts ordered by created timestamp", () => {
+    const jobs: JobRead[] = [
+      createJob({
+        id: "job_old",
+        job_type: "SKETCH",
+        input: { target_object_id: "obj_hero" },
+        output_artifact_ids: ["art_old"],
+        created_at: "2026-03-02T10:00:00Z",
+      }),
+      createJob({
+        id: "job_new",
+        job_type: "FINAL_COMPOSITE",
+        output_artifact_ids: ["art_new_primary", "art_new_secondary"],
+        created_at: "2026-03-02T11:00:00Z",
+      }),
+      createJob({
+        id: "job_failed",
+        status: "FAILED",
+        output_artifact_ids: ["art_failed"],
+        created_at: "2026-03-02T12:00:00Z",
+      }),
+    ];
+
+    const recent = mapRecentSuccessfulArtifacts(jobs, 3);
+    expect(recent).toEqual([
+      {
+        artifactId: "art_new_primary",
+        jobId: "job_new",
+        jobType: "FINAL_COMPOSITE",
+        targetObjectId: null,
+        createdAt: "2026-03-02T11:00:00Z",
+      },
+      {
+        artifactId: "art_new_secondary",
+        jobId: "job_new",
+        jobType: "FINAL_COMPOSITE",
+        targetObjectId: null,
+        createdAt: "2026-03-02T11:00:00Z",
+      },
+      {
+        artifactId: "art_old",
+        jobId: "job_old",
+        jobType: "SKETCH",
+        targetObjectId: "obj_hero",
+        createdAt: "2026-03-02T10:00:00Z",
+      },
+    ]);
+  });
+
+  it("enforces limit and ignores empty artifact ids", () => {
+    const jobs: JobRead[] = [
+      createJob({
+        id: "job_1",
+        job_type: "OBJECT_RENDER",
+        output_artifact_ids: ["", "art_1"],
+        created_at: "2026-03-02T10:00:00Z",
+      }),
+      createJob({
+        id: "job_2",
+        job_type: "REFINE",
+        output_artifact_ids: ["art_2"],
+        created_at: "2026-03-02T11:00:00Z",
+      }),
+    ];
+
+    const recent = mapRecentSuccessfulArtifacts(jobs, 1);
+    expect(recent).toHaveLength(1);
+    expect(recent[0]?.artifactId).toBe("art_2");
   });
 });
