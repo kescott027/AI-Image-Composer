@@ -285,6 +285,104 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
 
     return { total, succeeded, running, queued, failed, missing };
   }, [latestObjectRenderJobByObjectId, renderOrderedObjects]);
+  const objectsWithWireframeCount = useMemo(
+    () =>
+      renderOrderedObjects.filter(
+        (object) =>
+          Boolean(preferredWireframeArtifactsByObjectId[object.id]) ||
+          Boolean(wireframeArtifactsByObjectId[object.id]),
+      ).length,
+    [preferredWireframeArtifactsByObjectId, renderOrderedObjects, wireframeArtifactsByObjectId],
+  );
+  const anchoredObjectCount = useMemo(
+    () => renderOrderedObjects.filter((object) => object.metadata?.anchored === true).length,
+    [renderOrderedObjects],
+  );
+  const flowChecklist = useMemo(
+    () => [
+      {
+        id: "prompt",
+        label: "Overarching prompt set",
+        done: sceneSpec.scene.overarching_prompt.trim().length > 0,
+      },
+      {
+        id: "blocking",
+        label: "Blocking layer generated",
+        done: Boolean(blockingArtifactId),
+      },
+      {
+        id: "objects",
+        label: "At least 3 objects staged",
+        done: renderOrderedObjects.length >= 3,
+      },
+      {
+        id: "wireframes",
+        label: "Wireframes selected/generated for staged objects",
+        done:
+          renderOrderedObjects.length > 0 &&
+          objectsWithWireframeCount === renderOrderedObjects.length,
+      },
+      {
+        id: "anchors",
+        label: "All staged objects anchored",
+        done:
+          renderOrderedObjects.length > 0 && anchoredObjectCount === renderOrderedObjects.length,
+      },
+      {
+        id: "composite",
+        label: "Composite/refine output generated",
+        done: Boolean(finalCompositeArtifactId),
+      },
+    ],
+    [
+      anchoredObjectCount,
+      blockingArtifactId,
+      finalCompositeArtifactId,
+      objectsWithWireframeCount,
+      renderOrderedObjects.length,
+      sceneSpec.scene.overarching_prompt,
+    ],
+  );
+  const completedChecklistCount = useMemo(
+    () => flowChecklist.filter((item) => item.done).length,
+    [flowChecklist],
+  );
+  const persistFeedbackTone = useMemo(() => {
+    const text = persistMessage.toLowerCase();
+    if (text.includes("failed")) {
+      return "error";
+    }
+    if (text.includes("saving")) {
+      return "info";
+    }
+    if (text.includes("saved")) {
+      return "success";
+    }
+    return "info";
+  }, [persistMessage]);
+  const jobFeedbackTone = useMemo(() => {
+    const text = jobFeedback.toLowerCase();
+    if (text.includes("failed") || text.includes("error")) {
+      return "error";
+    }
+    if (
+      text.includes("select ") ||
+      text.includes("no ") ||
+      text.includes("anchor all") ||
+      text.includes("missing")
+    ) {
+      return "warning";
+    }
+    if (
+      text.includes("queued") ||
+      text.includes("selected") ||
+      text.includes("anchored") ||
+      text.includes("completed")
+    ) {
+      return "success";
+    }
+    return "info";
+  }, [jobFeedback]);
 
   useEffect(() => {
     latestSceneSpecRef.current = sceneSpec;
@@ -879,6 +977,19 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
       );
       return;
     }
+    const missingWireframeObjects = renderOrderedObjects.filter((object) => {
+      const wireframeArtifactId =
+        preferredWireframeArtifactsByObjectId[object.id] ?? wireframeArtifactsByObjectId[object.id];
+      return !wireframeArtifactId;
+    });
+    if (missingWireframeObjects.length > 0) {
+      setJobFeedback(
+        `Generate or choose wireframes before full render. Missing: ${missingWireframeObjects
+          .map((object) => object.name)
+          .join(", ")}`,
+      );
+      return;
+    }
     setActiveSubmission("OBJECT_RENDER");
     setJobFeedback(
       includeRefine
@@ -1017,7 +1128,7 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
         <aside className="panel panel-right">
           <h2>Right Panel</h2>
           <p>Prompt, constraints, generation, and version history</p>
-          <p className="generation-status">{persistMessage}</p>
+          <p className={`generation-status status-${persistFeedbackTone}`}>{persistMessage}</p>
           <OverarchingPromptEditor scene={sceneSpec.scene} onApply={applyScenePrompt} />
           <section className="object-tools">
             <h3>Object Creation</h3>
@@ -1268,6 +1379,20 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
               Blocking pass uses scene prompt. SKETCH/OBJECT_RENDER use selected object.
               OBJECT_RENDER jobs can be queued in full layer order for end-to-end composition.
             </p>
+            <section className="flow-readiness">
+              <h4>Release 0.5 Readiness</h4>
+              <p className="flow-summary">
+                {completedChecklistCount}/{flowChecklist.length} steps complete
+              </p>
+              <ul className="flow-checklist">
+                {flowChecklist.map((item) => (
+                  <li key={item.id} className={`flow-check-item ${item.done ? "done" : "todo"}`}>
+                    <span className="flow-check-state">{item.done ? "Done" : "Pending"}</span>
+                    <span>{item.label}</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
             <div className="tool-row">
               <button
                 type="button"
@@ -1455,7 +1580,7 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
                 {showFinalComposite ? "Hide Composite Layer" : "Show Composite Layer"}
               </button>
             </div>
-            <p className="generation-status">{jobFeedback}</p>
+            <p className={`generation-status status-${jobFeedbackTone}`}>{jobFeedback}</p>
             <p className="generation-status">
               Latest blocking pass: {blockingArtifactId ?? "none"}
             </p>
