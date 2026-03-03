@@ -190,11 +190,15 @@ Optional GPU for ML adapters
 
 1. Install dependencies and hooks
 make setup
-2. Start API
+2. Start local Postgres
+make db-up
+3. Apply DB migrations
+make db-migrate
+4. Start API
 pnpm run dev:api
-3. Start Worker
+5. Start Worker
 pnpm run dev:worker
-4. Start Frontend
+6. Start Frontend
 pnpm run dev:web
 Generation Flow
 

@@ -63,6 +63,8 @@ make ci
 Run scaffold services:
 
 ```bash
+make db-up
+make db-migrate
 pnpm run dev:api
 pnpm run dev:worker
 pnpm run dev:web
@@ -86,12 +88,20 @@ All primary workflows are wrapped in scripts under `/scripts` and exposed via `m
 - [ci.sh](/Users/kylescott/git/AI-Image-Composer/scripts/ci.sh): local CI gate
 - [hooks-install.sh](/Users/kylescott/git/AI-Image-Composer/scripts/hooks-install.sh): install local git hooks
 - [hooks-run.sh](/Users/kylescott/git/AI-Image-Composer/scripts/hooks-run.sh): run all hooks on demand
+- [db-up.sh](/Users/kylescott/git/AI-Image-Composer/scripts/db-up.sh): start local Postgres
+- [db-down.sh](/Users/kylescott/git/AI-Image-Composer/scripts/db-down.sh): stop local Postgres
+- [db-migrate.sh](/Users/kylescott/git/AI-Image-Composer/scripts/db-migrate.sh): apply Alembic migrations
+- [db-downgrade.sh](/Users/kylescott/git/AI-Image-Composer/scripts/db-downgrade.sh): roll back one migration
 
 ## Makefile Commands
 
 Reference: [Makefile](/Users/kylescott/git/AI-Image-Composer/Makefile)
 
 - `make setup`
+- `make db-up`
+- `make db-down`
+- `make db-migrate`
+- `make db-downgrade`
 - `make lint`
 - `make format`
 - `make format-check`

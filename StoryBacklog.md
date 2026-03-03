@@ -41,7 +41,7 @@ Includes:
 
 ---
 
-### 4. [NOT STARTED] Implement Persistent Storage Foundation (Postgres + Migrations)
+### 4. [DONE] Implement Persistent Storage Foundation (Postgres + Migrations)
 **Deliverable:**  
 Database schema and migrations for:
 - projects
