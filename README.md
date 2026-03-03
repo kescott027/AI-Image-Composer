@@ -220,6 +220,8 @@ aiic logs worker -f
 aiic stop
 ```
 
+If a service exits repeatedly, the manager now applies restart backoff and then marks that service as a crash-loop instead of restarting forever. Check `aiic status` and inspect logs with `aiic logs <service>`.
+
 Foreground mode remains available when needed:
 
 ```bash

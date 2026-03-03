@@ -69,6 +69,8 @@ aiic logs api -f
 aiic stop
 ```
 
+If `api`, `worker`, or `web` exits repeatedly, `aiic` uses restart backoff and then marks that service as crash-loop to avoid infinite restart spam. Use `aiic status` and `aiic logs <service>` for diagnosis.
+
 Use foreground mode only when actively debugging startup/shutdown behavior:
 
 ```bash

@@ -14,6 +14,9 @@ API_URL="http://localhost:8000/health"
 
 SERVICES=("api" "worker" "web")
 WATCH_INTERVAL_SECONDS="${AIIC_WATCH_INTERVAL_SECONDS:-2}"
+RESTART_WINDOW_SECONDS="${AIIC_RESTART_WINDOW_SECONDS:-120}"
+MAX_RESTARTS_PER_WINDOW="${AIIC_MAX_RESTARTS_PER_WINDOW:-8}"
+MAX_RESTART_DELAY_SECONDS="${AIIC_MAX_RESTART_DELAY_SECONDS:-30}"
 DB_STARTED_BY_SCRIPT=0
 
 cli_log() {
@@ -68,6 +71,97 @@ service_pid_file() {
   echo "$RUN_ROOT/${name}.pid"
 }
 
+service_log_file() {
+  local name="$1"
+  echo "$LOG_ROOT/${name}.log"
+}
+
+service_restart_state_file() {
+  local name="$1"
+  echo "$RUN_ROOT/${name}.restart-state"
+}
+
+service_crashloop_flag_file() {
+  local name="$1"
+  echo "$RUN_ROOT/${name}.crashloop"
+}
+
+clear_restart_state() {
+  local name="$1"
+  rm -f "$(service_restart_state_file "$name")"
+}
+
+clear_crashloop_flag() {
+  local name="$1"
+  rm -f "$(service_crashloop_flag_file "$name")"
+}
+
+mark_crashloop() {
+  local name="$1"
+  local attempts="$2"
+  printf '%s %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$attempts" >"$(service_crashloop_flag_file "$name")"
+}
+
+service_in_crashloop() {
+  local name="$1"
+  [[ -f "$(service_crashloop_flag_file "$name")" ]]
+}
+
+service_last_log_line() {
+  local name="$1"
+  local file
+  file="$(service_log_file "$name")"
+  if [[ ! -f "$file" ]]; then
+    echo "log file missing"
+    return 0
+  fi
+  local line
+  line="$(tail -n 1 "$file" 2>/dev/null | sed 's/[[:space:]]*$//' || true)"
+  if [[ -z "$line" ]]; then
+    echo "log file empty"
+    return 0
+  fi
+  echo "$line"
+}
+
+restart_delay_seconds() {
+  local name="$1"
+  local file now previous_ts previous_count elapsed count delay
+  file="$(service_restart_state_file "$name")"
+  now="$(date +%s)"
+  previous_ts=0
+  previous_count=0
+
+  if [[ -f "$file" ]]; then
+    read -r previous_ts previous_count <"$file" || true
+  fi
+
+  elapsed=$((now - previous_ts))
+  if ((previous_ts == 0 || elapsed > RESTART_WINDOW_SECONDS)); then
+    count=1
+  else
+    count=$((previous_count + 1))
+  fi
+
+  printf '%s %s\n' "$now" "$count" >"$file"
+
+  if ((count > MAX_RESTARTS_PER_WINDOW)); then
+    echo "$count"
+    return 1
+  fi
+
+  if ((count <= 1)); then
+    echo "0"
+    return 0
+  fi
+
+  delay=$((2 ** (count - 2)))
+  if ((delay > MAX_RESTART_DELAY_SECONDS)); then
+    delay="$MAX_RESTART_DELAY_SECONDS"
+  fi
+  echo "$delay"
+}
+
 service_cmd() {
   local name="$1"
   case "$name" in
@@ -88,6 +182,7 @@ is_running() {
 
 start_service() {
   local name="$1"
+  local reset_restart_state="${2:-0}"
   local command
   command="$(service_cmd "$name")"
 
@@ -96,11 +191,19 @@ start_service() {
     return 0
   fi
 
+  local log_file
+  log_file="$(service_log_file "$name")"
+  if [[ "$reset_restart_state" -eq 1 ]]; then
+    clear_restart_state "$name"
+    clear_crashloop_flag "$name"
+  fi
+
+  printf '\n%s [aiic] launching %s: %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$name" "$command" >>"$log_file"
   manager_log "Starting $name ..."
-  bash -lc "cd \"$REPO_ROOT\" && $command" >"$LOG_ROOT/${name}.log" 2>&1 &
+  bash -lc "cd \"$REPO_ROOT\" && $command" >>"$log_file" 2>&1 &
   local pid=$!
   echo "$pid" >"$(service_pid_file "$name")"
-  manager_log "$name started (pid=$pid, log=$LOG_ROOT/${name}.log)"
+  manager_log "$name started (pid=$pid, log=$log_file)"
 }
 
 stop_service() {
@@ -126,6 +229,8 @@ stop_service() {
     fi
   fi
   rm -f "$pid_file"
+  clear_restart_state "$name"
+  clear_crashloop_flag "$name"
 }
 
 ensure_prerequisites() {
@@ -182,7 +287,27 @@ watchdog_loop() {
   while true; do
     for service in "${SERVICES[@]}"; do
       if ! is_running "$service"; then
-        manager_log "WARNING: $service exited. Restarting ..."
+        if service_in_crashloop "$service"; then
+          continue
+        fi
+
+        local delay_or_attempts
+        local last_line
+        last_line="$(service_last_log_line "$service")"
+
+        if ! delay_or_attempts="$(restart_delay_seconds "$service")"; then
+          mark_crashloop "$service" "$delay_or_attempts"
+          manager_log "ERROR: $service entered crash-loop after $delay_or_attempts restart attempts in ${RESTART_WINDOW_SECONDS}s. Last log line: $last_line"
+          manager_log "ERROR: $service will remain stopped until manual restart. Inspect: aiic logs $service"
+          continue
+        fi
+
+        if [[ "$delay_or_attempts" -gt 0 ]]; then
+          manager_log "WARNING: $service exited. Restarting in ${delay_or_attempts}s. Last log line: $last_line"
+          sleep "$delay_or_attempts"
+        else
+          manager_log "WARNING: $service exited. Restarting immediately. Last log line: $last_line"
+        fi
         start_service "$service"
       fi
     done
@@ -205,7 +330,7 @@ run_foreground() {
   trap cleanup EXIT INT TERM
 
   for service in "${SERVICES[@]}"; do
-    start_service "$service"
+    start_service "$service" 1
   done
 
   touch "$READY_FILE"
@@ -234,7 +359,7 @@ run_daemon() {
   start_database_if_needed
 
   for service in "${SERVICES[@]}"; do
-    start_service "$service"
+    start_service "$service" 1
   done
 
   touch "$READY_FILE"
@@ -330,6 +455,7 @@ stop_daemon() {
 
 status_daemon() {
   local overall="stopped"
+  local degraded=0
   if manager_running; then
     overall="running"
     cli_log "Manager: running (pid=$(manager_pid))"
@@ -341,6 +467,9 @@ status_daemon() {
     if is_running "$service"; then
       cli_log "Service $service: running (pid=$(read_pid_file "$(service_pid_file "$service")"))"
       overall="running"
+    elif service_in_crashloop "$service"; then
+      cli_warn "Service $service: crash-loop (inspect with: aiic logs $service)"
+      degraded=1
     else
       cli_log "Service $service: stopped"
     fi
@@ -358,7 +487,9 @@ status_daemon() {
   fi
 
   cli_log "Logs: $LOG_ROOT"
-  [[ "$overall" == "running" ]] && return 0
+  if [[ "$overall" == "running" && "$degraded" -eq 0 ]]; then
+    return 0
+  fi
   return 1
 }
 
