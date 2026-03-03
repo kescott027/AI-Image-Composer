@@ -236,6 +236,12 @@ Directed 3-layer compose flow (Release 0.5 in progress):
 4. Drag objects into place on canvas and click `Anchor`.
 5. Run `Render Full Scene + Refine` for ordered object renders + composite + refine pass.
 
+Automated acceptance path for this flow:
+
+```bash
+make iur-directed-flow
+```
+
 6. Install dependencies and hooks
    make setup
 7. Start local Postgres

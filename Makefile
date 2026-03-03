@@ -1,7 +1,7 @@
 SHELL := /usr/bin/env bash
 .DEFAULT_GOAL := help
 
-.PHONY: help install setup db-up db-down db-migrate db-downgrade dev-api dev-worker worker-job-once dev-web aiic aiic-start aiic-stop aiic-restart aiic-status aiic-logs aiic-run openapi lint format format-check test scan ci hooks-install hooks-run iur-smoke iur-happy-path clean
+.PHONY: help install setup db-up db-down db-migrate db-downgrade dev-api dev-worker worker-job-once dev-web aiic aiic-start aiic-stop aiic-restart aiic-status aiic-logs aiic-run openapi lint format format-check test scan ci hooks-install hooks-run iur-smoke iur-happy-path iur-directed-flow iur-directed-3layer clean
 
 help: ## Show available commands
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "%-16s %s\n", $$1, $$2}'
@@ -89,6 +89,11 @@ iur-smoke: ## Execute the Initial Usable Release API smoke workflow
 
 iur-happy-path: ## Execute IUR smoke + process jobs + validate composite artifact
 	./scripts/iur-happy-path.sh
+
+iur-directed-flow: ## Execute directed person/table/cake 3-layer smoke + refine validation
+	./scripts/iur-directed-3layer.sh
+
+iur-directed-3layer: iur-directed-flow
 
 clean: ## Remove common local caches/artifacts
 	rm -rf .venv .pytest_cache .ruff_cache .pre-commit-cache .coverage coverage dist node_modules

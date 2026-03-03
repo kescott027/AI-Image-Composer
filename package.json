@@ -27,6 +27,7 @@
     "scan": "./scripts/scan.sh",
     "ci": "./scripts/ci.sh",
     "iur:smoke": "./scripts/iur-smoke.sh",
+    "iur:directed-3layer": "./scripts/iur-directed-3layer.sh",
     "hooks:install": "./scripts/hooks-install.sh",
     "hooks:run": "./scripts/hooks-run.sh",
     "lint:js": "eslint . --max-warnings=0",
