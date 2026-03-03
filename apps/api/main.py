@@ -1,5 +1,6 @@
 import hashlib
 import json
+from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from uuid import uuid4
 
@@ -19,14 +20,21 @@ from apps.api.models.jobs import JobCreate, JobRead
 from apps.api.models.scenespec import SceneSpec
 from apps.api.services.artifact_store import LocalArtifactStore
 from apps.api.services.prompt_compiler import compile_prompt_for_job
+from apps.api.services.rate_limiter import RateLimiter
 from apps.api.services.relation_conflicts import detect_relation_conflicts
-from fastapi import Body, Depends, FastAPI, File, Form, HTTPException, Query, UploadFile
-from fastapi.responses import FileResponse
+from fastapi import Body, Depends, FastAPI, File, Form, HTTPException, Query, Request, UploadFile
+from fastapi.responses import FileResponse, JSONResponse
 from sqlalchemy import desc, select
 from sqlalchemy.orm import Session
+from starlette.responses import Response
 
 app = FastAPI(title="AI Image Composer API", version="0.1.0")
 artifact_store = LocalArtifactStore.from_env()
+rate_limiter = RateLimiter.from_env()
+
+
+def reset_rate_limiter_state() -> None:
+    rate_limiter.reset()
 
 
 def _generate_id(prefix: str) -> str:
@@ -203,6 +211,32 @@ def _job_input_hash(scene_id: str, job_type: str, payload: dict[str, object]) ->
     normalized_payload = json.dumps(payload, sort_keys=True, separators=(",", ":"))
     digest = hashlib.sha256(f"{scene_id}:{job_type}:{normalized_payload}".encode()).hexdigest()
     return f"sha256:{digest}"
+
+
+@app.middleware("http")
+async def enforce_rate_limit(
+    request: Request, call_next: Callable[[Request], Awaitable[Response]]
+) -> Response:
+    client_host = request.client.host if request.client else "unknown"
+    decision = rate_limiter.evaluate(client_id=client_host, path=request.url.path)
+    if not decision.allowed:
+        headers = {
+            "X-RateLimit-Limit": str(decision.limit),
+            "X-RateLimit-Remaining": "0",
+        }
+        if decision.retry_after_seconds is not None:
+            headers["Retry-After"] = str(decision.retry_after_seconds)
+        return JSONResponse(
+            status_code=429,
+            content={"detail": "Rate limit exceeded. Please retry later."},
+            headers=headers,
+        )
+
+    response = await call_next(request)
+    if rate_limiter.enabled and not rate_limiter.is_exempt(request.url.path):
+        response.headers["X-RateLimit-Limit"] = str(decision.limit)
+        response.headers["X-RateLimit-Remaining"] = str(decision.remaining)
+    return response
 
 
 @app.get("/health")
