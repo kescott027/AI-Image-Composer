@@ -832,7 +832,7 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
     setJobFeedback("Wireframe candidate reset to latest successful sketch.");
   };
 
-  const renderOrderedLayersAndComposite = async () => {
+  const queueOrderedRenderPipeline = async (includeRefine: boolean) => {
     if (renderOrderedObjects.length === 0) {
       setJobFeedback("No visible objects to render.");
       return;
@@ -846,7 +846,11 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
       return;
     }
     setActiveSubmission("OBJECT_RENDER");
-    setJobFeedback("Queueing bottom-to-top object renders, then composite...");
+    setJobFeedback(
+      includeRefine
+        ? "Queueing bottom-to-top object renders, composite, and refine..."
+        : "Queueing bottom-to-top object renders, then composite...",
+    );
     try {
       await upsertSceneSpec(sceneId, sceneSpec);
       for (const object of renderOrderedObjects) {
@@ -859,8 +863,13 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
         });
       }
       await queueGenerationJob("FINAL_COMPOSITE");
+      if (includeRefine) {
+        await queueGenerationJob("REFINE");
+      }
       setJobFeedback(
-        `Queued ${renderOrderedObjects.length} object render job(s) in layer order + final composite.`,
+        includeRefine
+          ? `Queued ${renderOrderedObjects.length} object render job(s) + composite + refine.`
+          : `Queued ${renderOrderedObjects.length} object render job(s) in layer order + final composite.`,
       );
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown layered render error";
@@ -868,6 +877,14 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
     } finally {
       setActiveSubmission(null);
     }
+  };
+
+  const renderOrderedLayersAndComposite = async () => {
+    await queueOrderedRenderPipeline(false);
+  };
+
+  const renderOrderedLayersCompositeAndRefine = async () => {
+    await queueOrderedRenderPipeline(true);
   };
 
   const retryFailedObjectRenders = async () => {
@@ -1205,6 +1222,14 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
                 disabled={activeSubmission !== null || renderOrderedObjects.length === 0}
               >
                 Render All Layers + Composite
+              </button>
+              <button
+                type="button"
+                className="button-link"
+                onClick={() => void renderOrderedLayersCompositeAndRefine()}
+                disabled={activeSubmission !== null || renderOrderedObjects.length === 0}
+              >
+                Render Full Scene + Refine
               </button>
             </div>
             <div className="tool-row">
