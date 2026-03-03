@@ -43,6 +43,11 @@ Prerequisites:
 - `pnpm` (bootstrapped via `corepack` or `npm` if missing)
 - `uv` (bootstrapped via `brew`, `pipx`, or `curl` installer if missing)
 
+Database defaults:
+
+- Local Docker Postgres is exposed on host port `55432` by default.
+- Override with `AIIC_POSTGRES_PORT` in your shell or `.env` (see `.env.example`).
+
 Run:
 
 ```bash

@@ -195,6 +195,11 @@ Docker (for Postgres)
 
 Optional GPU for ML adapters
 
+Database host port behavior:
+
+- This project maps Postgres to host port `55432` by default (not `5432`) to avoid clashing with existing local Postgres services.
+- Override with `AIIC_POSTGRES_PORT` (see `.env.example`).
+
 Simplest install + launch:
 
 ```bash
