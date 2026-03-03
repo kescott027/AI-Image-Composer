@@ -23,15 +23,22 @@ class ArtifactIntegrityError(Exception):
 
 
 class LocalArtifactStore:
-    def __init__(self, root: Path) -> None:
+    def __init__(self, root: Path, immutable_mode: bool = False) -> None:
         self.root = root
+        self.immutable_mode = immutable_mode
         self.root.mkdir(parents=True, exist_ok=True)
         self._lock = Lock()
 
     @classmethod
     def from_env(cls) -> LocalArtifactStore:
         root = Path(os.getenv("ARTIFACTS_ROOT", ".artifacts"))
-        return cls(root=root)
+        immutable_mode = os.getenv("AIIC_ARTIFACT_IMMUTABLE_MODE", "false").lower() in {
+            "1",
+            "true",
+            "yes",
+            "on",
+        }
+        return cls(root=root, immutable_mode=immutable_mode)
 
     def create(
         self,
@@ -60,15 +67,20 @@ class LocalArtifactStore:
             content_type=content_type,
             size_bytes=len(data),
             checksum_sha256=hashlib.sha256(data).hexdigest(),
+            immutable=self.immutable_mode,
             created_at=created_at,
         )
 
         with self._lock:
             file_path.write_bytes(data)
-            self._meta_path(artifact_id).write_text(
+            meta_path = self._meta_path(artifact_id)
+            meta_path.write_text(
                 json.dumps(metadata.model_dump(mode="json"), indent=2),
                 encoding="utf-8",
             )
+            if self.immutable_mode:
+                self._set_read_only(file_path)
+                self._set_read_only(meta_path)
 
         return metadata
 
@@ -100,6 +112,14 @@ class LocalArtifactStore:
 
     def _meta_path(self, artifact_id: str) -> Path:
         return self.root / f"{artifact_id}.json"
+
+    @staticmethod
+    def _set_read_only(path: Path) -> None:
+        try:
+            path.chmod(0o444)
+        except OSError:
+            # Best-effort: do not fail artifact creation on unsupported filesystems.
+            return
 
     @staticmethod
     def _sha256_for_file(file_path: Path) -> str:
