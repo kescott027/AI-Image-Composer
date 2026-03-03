@@ -21,6 +21,7 @@ from apps.api.models.crud import (
 )
 from apps.api.models.jobs import JobCreate, JobRead
 from apps.api.models.scenespec import SceneSpec
+from apps.api.security.secrets import assert_runtime_secrets, runtime_secret_metadata
 from apps.api.services.artifact_store import LocalArtifactStore
 from apps.api.services.prompt_compiler import compile_prompt_for_job
 from apps.api.services.rate_limiter import RateLimiter
@@ -51,6 +52,18 @@ def _configure_api_logger() -> logging.Logger:
 
 
 api_logger = _configure_api_logger()
+
+
+@app.on_event("startup")
+def validate_runtime_security() -> None:
+    assert_runtime_secrets()
+    metadata = runtime_secret_metadata()
+    api_logger.info(
+        "runtime_security_validated env=%s app_secret_key_version=%s provider_keyset_version=%s",
+        metadata["env"],
+        metadata["app_secret_key_version"],
+        metadata["provider_keyset_version"],
+    )
 
 
 def reset_rate_limiter_state() -> None:

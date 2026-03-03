@@ -2,20 +2,39 @@
 
 ## Supported Versions
 
-Use this section to tell people about which versions of your project are
-currently being supported with security updates.
-
-| Version | Supported          |
-| ------- | ------------------ |
-| 5.1.x   | :white_check_mark: |
-| 5.0.x   | :x:                |
-| 4.0.x   | :white_check_mark: |
-| < 4.0   | :x:                |
+Only the latest `main` branch and the most recent tagged release are supported for security fixes.
 
 ## Reporting a Vulnerability
 
-Use this section to tell people how to report a vulnerability.
+Please report suspected vulnerabilities privately:
 
-Tell them where to go, how often they can expect to get an update on a
-reported vulnerability, what to expect if the vulnerability is accepted or
-declined, etc.
+- Open a GitHub Security Advisory draft in this repository, or
+- Email the maintainers listed in repository ownership.
+
+When reporting, include:
+
+- Affected endpoint/component
+- Reproduction steps or PoC
+- Impact assessment
+- Suggested mitigation (if known)
+
+Triage targets:
+
+- Initial acknowledgment within 2 business days
+- Triage decision within 5 business days
+- Coordinated remediation/notification timeline after validation
+
+## Secret Management Baseline
+
+- Do not commit `.env` files or plaintext credentials.
+- Production runtime (`AIIC_ENV=production|prod`) requires `AIIC_APP_SECRET_KEY`.
+- Weak/default placeholders (for example `changeme`, `example`, short values) are rejected in production.
+- Track rotation metadata via:
+  - `AIIC_APP_SECRET_KEY_VERSION`
+  - `AIIC_PROVIDER_KEYSET_VERSION`
+
+Validate locally/CI:
+
+```bash
+make secrets-check
+```
