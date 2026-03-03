@@ -68,7 +68,7 @@ project -> overarching prompt -> blocking layer -> object wireframes (iterate/se
 7. **Story 119** `[IN PROGRESS]` Drag/Place Workflow with Explicit Anchor Action
 8. **Story 120** `[IN PROGRESS]` Anchor Semantics Enforcement (anchored objects remain fixed during regenerate/render)
 9. **Story 121** `[IN PROGRESS]` Ordered Layer Render Orchestrator (bottom-to-top render queue from current scene state)
-10. **Story 122** `[NOT STARTED]` Per-Layer Render Progress + Retry UX (clear status, fail/retry per object)
+10. **Story 122** `[IN PROGRESS]` Per-Layer Render Progress + Retry UX (clear status, fail/retry per object)
 11. **Story 123** `[IN PROGRESS]` Unified Composite Pass (global consistency using overarching prompt context)
 12. **Story 124** `[NOT STARTED]` Palette and Style Harmonization Controls (color consistency knobs + defaults)
 13. **Story 125** `[NOT STARTED]` End-to-End Acceptance Scenario: Person + Table + Birthday Cake

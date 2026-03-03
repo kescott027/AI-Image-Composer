@@ -75,6 +75,15 @@ Use foreground mode only when actively debugging startup/shutdown behavior:
 aiic run
 ```
 
+Directed 3-layer flow (current next-break implementation pass):
+
+1. Quick start from Projects: create project + first scene + overarching prompt.
+2. Generate scene-level blocking layer from editor.
+3. Add preset objects (`Person`, `Table`, `Birthday Cake`).
+4. Generate wireframes (single, cycle 2-5, or N variants), choose preferred candidate.
+5. Drag/place object on canvas and use `Anchor`.
+6. Run `Render All Layers + Composite` or `Render Full Scene + Refine`.
+
 Manual mode (without `aiic`):
 
 ```bash
