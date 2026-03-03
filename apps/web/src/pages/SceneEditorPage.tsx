@@ -4,6 +4,7 @@ import { Link, useParams } from "react-router-dom";
 import {
   buildGenerationInput,
   createJob,
+  type JobRead,
   type SupportedJobType,
 } from "../api/jobs";
 import { LayersPanel } from "../components/LayersPanel";
@@ -15,6 +16,7 @@ import {
 } from "../components/OverarchingPromptEditor";
 import { SceneCanvas } from "../components/SceneCanvas";
 import { ROUTES } from "../routes";
+import { mapLatestSketchArtifactsByObjectId } from "../state/jobArtifacts";
 import {
   addObjectCommand,
   moveObjectCommand,
@@ -31,6 +33,7 @@ import { SceneStoreProvider, useSceneStore } from "../state/sceneStore";
 
 function SceneEditorShell({ sceneId }: { sceneId: string }) {
   const [selectedObjectId, setSelectedObjectId] = useState<string | null>(null);
+  const [sceneJobs, setSceneJobs] = useState<JobRead[]>([]);
   const [activeSubmission, setActiveSubmission] = useState<SupportedJobType | null>(null);
   const [jobFeedback, setJobFeedback] = useState("No generation jobs submitted yet.");
   const { sceneSpec, commandLog, canUndo, canRedo, executeCommand, undo, redo } = useSceneStore();
@@ -42,6 +45,10 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
   const selectedObject = useMemo(
     () => sceneSpec.objects.find((object) => object.id === selectedObjectId) ?? null,
     [sceneSpec.objects, selectedObjectId],
+  );
+  const wireframeArtifactsByObjectId = useMemo(
+    () => mapLatestSketchArtifactsByObjectId(sceneJobs),
+    [sceneJobs],
   );
 
   const applyScenePrompt = (values: OverarchingPromptEditorValues) => {
@@ -104,6 +111,10 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
   };
 
   const submitGenerationJob = async (jobType: SupportedJobType) => {
+    if (jobType === "SKETCH" && !selectedObject) {
+      setJobFeedback("Select an object before submitting a SKETCH job.");
+      return;
+    }
     if (jobType === "OBJECT_RENDER" && !selectedObject) {
       setJobFeedback("Select an object before submitting an OBJECT_RENDER job.");
       return;
@@ -114,7 +125,7 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
 
     try {
       const input =
-        jobType === "OBJECT_RENDER" && selectedObject
+        (jobType === "OBJECT_RENDER" || jobType === "SKETCH") && selectedObject
           ? buildGenerationInput(sceneSpec, { targetObjectId: selectedObject.id })
           : buildGenerationInput(sceneSpec);
       const job = await createJob({
@@ -157,6 +168,7 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
         <SceneCanvas
           sceneSpec={sceneSpec}
           selectedObjectId={selectedObjectId}
+          wireframeArtifactsByObjectId={wireframeArtifactsByObjectId}
           onSelectObject={setSelectedObjectId}
         />
 
@@ -215,13 +227,13 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
           <ObjectPromptEditor selectedObject={selectedObject} onApply={applyObjectPrompt} />
           <section className="generation-tools">
             <h3>Generation Jobs</h3>
-            <p>Queue a backend job for this scene snapshot.</p>
+            <p>Queue backend jobs. SKETCH and OBJECT_RENDER use the selected object.</p>
             <div className="tool-row">
               <button
                 type="button"
                 className="button-link"
                 onClick={() => submitGenerationJob("SKETCH")}
-                disabled={activeSubmission !== null}
+                disabled={activeSubmission !== null || !selectedObject}
               >
                 Generate Wireframe
               </button>
@@ -244,7 +256,7 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
             </div>
             <p className="generation-status">{jobFeedback}</p>
           </section>
-          <JobStatusPanel sceneId={sceneSpec.scene.id} />
+          <JobStatusPanel sceneId={sceneSpec.scene.id} onJobsUpdate={setSceneJobs} />
           <ul className="history-list">
             {commandLog.slice(-6).reverse().map((entry, index) => (
               <li key={`${entry}-${index}`}>{entry}</li>

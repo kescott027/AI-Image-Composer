@@ -5,6 +5,7 @@ import { listJobs, type JobRead } from "../api/jobs";
 interface JobStatusPanelProps {
   sceneId: string;
   refreshIntervalMs?: number;
+  onJobsUpdate?: (jobs: JobRead[]) => void;
 }
 
 function formatDateTime(timestamp?: string | null): string {
@@ -63,7 +64,11 @@ function JobItem({ job }: { job: JobRead }) {
   );
 }
 
-export function JobStatusPanel({ sceneId, refreshIntervalMs = 5000 }: JobStatusPanelProps) {
+export function JobStatusPanel({
+  sceneId,
+  refreshIntervalMs = 5000,
+  onJobsUpdate,
+}: JobStatusPanelProps) {
   const [jobs, setJobs] = useState<JobRead[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -74,6 +79,7 @@ export function JobStatusPanel({ sceneId, refreshIntervalMs = 5000 }: JobStatusP
     try {
       const result = await listJobs({ sceneId });
       setJobs(result);
+      onJobsUpdate?.(result);
       setErrorMessage(null);
       setLastUpdatedAt(new Date().toISOString());
     } catch (error) {
@@ -82,7 +88,7 @@ export function JobStatusPanel({ sceneId, refreshIntervalMs = 5000 }: JobStatusP
     } finally {
       setIsLoading(false);
     }
-  }, [sceneId]);
+  }, [onJobsUpdate, sceneId]);
 
   useEffect(() => {
     void refreshJobs();

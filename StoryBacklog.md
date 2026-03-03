@@ -186,7 +186,7 @@ Job queue panel:
 
 ---
 
-### 18. [NOT STARTED] Implement Wireframe Artifact Rendering
+### 18. [DONE] Implement Wireframe Artifact Rendering
 **Deliverable:**  
 When SKETCH job completes:
 - Wireframe image appears in correct layer
