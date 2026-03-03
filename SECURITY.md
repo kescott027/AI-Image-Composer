@@ -45,3 +45,9 @@ make secrets-check
 - Artifact download endpoints verify checksum before serving file content.
 - Checksum mismatch returns HTTP `409` (integrity conflict) instead of serving tampered data.
 - Optional immutable mode (`AIIC_ARTIFACT_IMMUTABLE_MODE=true`) sets artifact and metadata files to read-only after creation.
+
+## Backup and Restore Baseline
+
+- Use `make backup-create` to create a timestamped local backup bundle (`db.dump` + artifacts snapshot).
+- Use `make backup-restore BACKUP=/abs/path/to/archive.tar.gz` to restore database and artifact content.
+- Backup bundles are local operational artifacts and should be protected like secrets.
