@@ -1,7 +1,7 @@
 SHELL := /usr/bin/env bash
 .DEFAULT_GOAL := help
 
-.PHONY: help setup db-up db-down db-migrate db-downgrade dev-api dev-worker worker-job-once dev-web openapi lint format format-check test scan ci hooks-install hooks-run iur-smoke clean
+.PHONY: help setup db-up db-down db-migrate db-downgrade dev-api dev-worker worker-job-once dev-web openapi lint format format-check test scan ci hooks-install hooks-run iur-smoke iur-happy-path clean
 
 help: ## Show available commands
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "%-16s %s\n", $$1, $$2}'
@@ -62,6 +62,9 @@ hooks-run: ## Run all pre-commit hooks against all files
 
 iur-smoke: ## Execute the Initial Usable Release API smoke workflow
 	./scripts/iur-smoke.sh
+
+iur-happy-path: ## Execute IUR smoke + process jobs + validate composite artifact
+	./scripts/iur-happy-path.sh
 
 clean: ## Remove common local caches/artifacts
 	rm -rf .venv .pytest_cache .ruff_cache .pre-commit-cache .coverage coverage dist node_modules

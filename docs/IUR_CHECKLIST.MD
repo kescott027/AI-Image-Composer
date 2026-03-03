@@ -24,6 +24,12 @@ make iur-smoke
 
 The script executes API-only smoke validation for project/scene creation, SceneSpec persistence, version creation, and job submission.
 
+For a full happy-path validation (including worker processing and composite artifact verification), run:
+
+```bash
+make iur-happy-path
+```
+
 ## Manual UI Validation
 
 1. Start services:
