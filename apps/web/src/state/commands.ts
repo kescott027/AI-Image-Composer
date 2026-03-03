@@ -174,6 +174,35 @@ export function addObjectCommand(layerId: string, name: string): SceneCommand {
   };
 }
 
+export function setObjectPromptCommand(objectId: string, prompt: string): SceneCommand {
+  return {
+    name: "SET_OBJECT_PROMPT",
+    apply(sceneSpec) {
+      const next = cloneSceneSpec(sceneSpec);
+      next.objects = next.objects.map((object) =>
+        object.id === objectId ? { ...object, prompt } : object,
+      );
+      return next;
+    },
+  };
+}
+
+export function setObjectNegativePromptCommand(
+  objectId: string,
+  negativePrompt: string,
+): SceneCommand {
+  return {
+    name: "SET_OBJECT_NEGATIVE_PROMPT",
+    apply(sceneSpec) {
+      const next = cloneSceneSpec(sceneSpec);
+      next.objects = next.objects.map((object) =>
+        object.id === objectId ? { ...object, negative_prompt: negativePrompt } : object,
+      );
+      return next;
+    },
+  };
+}
+
 export function moveObjectCommand(objectId: string, deltaX: number, deltaY: number): SceneCommand {
   return {
     name: "MOVE_OBJECT",

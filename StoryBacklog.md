@@ -155,7 +155,7 @@ Scene-level prompt editor stored in SceneSpec and versioned.
 
 ---
 
-### 15. [NOT STARTED] Implement Per-Object Prompt Editor
+### 15. [DONE] Implement Per-Object Prompt Editor
 **Deliverable:**  
 Each object supports:
 - Prompt

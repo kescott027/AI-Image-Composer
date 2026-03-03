@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
 import { LayersPanel } from "../components/LayersPanel";
+import { ObjectPromptEditor, type ObjectPromptEditorValues } from "../components/ObjectPromptEditor";
 import {
   type OverarchingPromptEditorValues,
   OverarchingPromptEditor,
@@ -11,6 +12,8 @@ import { ROUTES } from "../routes";
 import {
   addObjectCommand,
   moveObjectCommand,
+  setObjectNegativePromptCommand,
+  setObjectPromptCommand,
   moveObjectZOrderCommand,
   rotateObjectCommand,
   scaleObjectCommand,
@@ -42,6 +45,18 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
     }
     if (values.stylePreset !== (sceneSpec.scene.style_preset ?? "default")) {
       executeCommand(setStylePresetCommand(values.stylePreset));
+    }
+  };
+
+  const applyObjectPrompt = (values: ObjectPromptEditorValues) => {
+    if (!selectedObject) {
+      return;
+    }
+    if (values.prompt !== selectedObject.prompt) {
+      executeCommand(setObjectPromptCommand(selectedObject.id, values.prompt));
+    }
+    if (values.negativePrompt !== (selectedObject.negative_prompt ?? "")) {
+      executeCommand(setObjectNegativePromptCommand(selectedObject.id, values.negativePrompt));
     }
   };
 
@@ -161,6 +176,7 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
               </button>
             </div>
           </div>
+          <ObjectPromptEditor selectedObject={selectedObject} onApply={applyObjectPrompt} />
           <ul className="history-list">
             {commandLog.slice(-6).reverse().map((entry, index) => (
               <li key={`${entry}-${index}`}>{entry}</li>

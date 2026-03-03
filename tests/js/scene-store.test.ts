@@ -8,6 +8,8 @@ import {
   moveLayerCommand,
   rotateObjectCommand,
   scaleObjectCommand,
+  setObjectNegativePromptCommand,
+  setObjectPromptCommand,
   setNegativePromptCommand,
   setOverarchingPromptCommand,
   setStylePresetCommand,
@@ -143,6 +145,43 @@ describe("scene store reducer", () => {
     expect(updatedHero?.transform?.scale_x).toBe(1.1);
     expect(updatedHero?.transform?.scale_y).toBe(1.1);
     expect(updatedHero?.transform?.z_index).toBe(1);
+  });
+
+  it("updates per-object prompt fields through commands", () => {
+    let state = createInitialSceneStoreState("scene_store_object_prompts");
+    const objectLayer = state.sceneSpec.layers.find((layer) => layer.type === "OBJECT");
+    expect(objectLayer).toBeDefined();
+    if (!objectLayer) {
+      return;
+    }
+
+    state = sceneStoreReducer(state, {
+      type: "EXECUTE_COMMAND",
+      command: addObjectCommand(objectLayer.id, "Guide"),
+    });
+
+    const guide = state.sceneSpec.objects.find((object) => object.name === "Guide");
+    expect(guide).toBeDefined();
+    if (!guide) {
+      return;
+    }
+
+    state = sceneStoreReducer(state, {
+      type: "EXECUTE_COMMAND",
+      command: setObjectPromptCommand(guide.id, "A traveler in a red jacket"),
+    });
+    state = sceneStoreReducer(state, {
+      type: "EXECUTE_COMMAND",
+      command: setObjectNegativePromptCommand(guide.id, "extra limbs, blur"),
+    });
+
+    const updatedGuide = state.sceneSpec.objects.find((object) => object.id === guide.id);
+    expect(updatedGuide?.prompt).toBe("A traveler in a red jacket");
+    expect(updatedGuide?.negative_prompt).toBe("extra limbs, blur");
+
+    state = sceneStoreReducer(state, { type: "UNDO" });
+    const undoneGuide = state.sceneSpec.objects.find((object) => object.id === guide.id);
+    expect(undoneGuide?.negative_prompt).toBe("");
   });
 
   it("toggles lock and reorders layers", () => {
