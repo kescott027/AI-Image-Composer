@@ -263,7 +263,7 @@ Tag this release.
 
 ## Phase 2 – Constraint Awareness & Intelligence
 
-### 25. [NOT STARTED] Replace Fake Sketch Adapter with Real Model
+### 25. [DONE] Replace Fake Sketch Adapter with Real Model
 **Deliverable:**
 - Integrate lightweight sketch model
 - Maintain adapter interface
@@ -271,7 +271,7 @@ Tag this release.
 
 ---
 
-### 26. [NOT STARTED] Replace Fake Object Render Adapter with Real Model
+### 26. [DONE] Replace Fake Object Render Adapter with Real Model
 **Deliverable:**
 - Integrate SD/SDXL-based object renderer
 - Transparent background support

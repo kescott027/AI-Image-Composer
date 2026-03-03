@@ -91,6 +91,7 @@ Zone rendering (Phase 3)
 Refinement passes
 
 Adapters are swappable without changing the core system.
+See `docs/MODEL_ADAPTER_SETUP.MD` for real-model adapter configuration.
 
 Repository Structure
 /apps

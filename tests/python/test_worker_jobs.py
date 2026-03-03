@@ -143,3 +143,62 @@ def test_process_one_job_when_queue_is_empty(monkeypatch, tmp_path: Path) -> Non
 
     Base.metadata.drop_all(bind=engine)
     engine.dispose()
+
+
+def test_process_one_job_persists_mask_artifact_when_adapter_returns_mask(monkeypatch, tmp_path: Path) -> None:
+    engine, session_local = _db_session_factory()
+
+    with session_local() as session:
+        scene_id = _seed_scene(session)
+        job = db_models.Job(
+            id="job_masked",
+            scene_id=scene_id,
+            job_type="OBJECT_RENDER",
+            status="QUEUED",
+            priority=0,
+            input_json={},
+            output_artifact_ids=[],
+            logs_json=[],
+        )
+        session.add(job)
+        session.commit()
+
+    class _MaskAdapter:
+        def render(self, *, scene_id: str, job_id: str, input_payload: dict[str, object]):
+            png_header = b"\x89PNG\r\n\x1a\n"
+            return type(
+                "Result",
+                (),
+                {
+                    "png_bytes": png_header + b"primary",
+                    "width": 64,
+                    "height": 64,
+                    "subtype": "RENDER",
+                    "adapter_name": "test_mask_adapter",
+                    "mask_png_bytes": png_header + b"mask",
+                    "mask_subtype": "RMASK",
+                },
+            )()
+
+    monkeypatch.setattr(worker, "get_session_local", lambda: session_local)
+    monkeypatch.setattr(worker, "get_artifact_store", lambda: LocalArtifactStore(tmp_path))
+    monkeypatch.setattr(worker, "resolve_adapter", lambda _job_type: _MaskAdapter())
+
+    processed = worker.process_one_job()
+    assert processed is True
+
+    with session_local() as session:
+        updated = session.get(db_models.Job, "job_masked")
+        assert updated is not None
+        assert updated.status == "SUCCEEDED"
+        assert len(updated.output_artifact_ids) == 2
+
+        primary = session.get(db_models.Artifact, updated.output_artifact_ids[0])
+        mask = session.get(db_models.Artifact, updated.output_artifact_ids[1])
+        assert primary is not None
+        assert primary.subtype == "RENDER"
+        assert mask is not None
+        assert mask.subtype == "RMASK"
+
+    Base.metadata.drop_all(bind=engine)
+    engine.dispose()

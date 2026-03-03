@@ -14,6 +14,7 @@ from apps.api.db import models as db_models
 from apps.api.db.session import get_session_local
 from apps.api.services.artifact_store import LocalArtifactStore
 from apps.worker.fake_adapters import render_placeholder_png
+from apps.worker.model_adapters import resolve_adapter
 
 
 _artifact_store: LocalArtifactStore | None = None
@@ -280,6 +281,30 @@ def _persist_artifact(
     return artifact.id
 
 
+def _render_model_adapter_job(
+    job: db_models.Job,
+) -> tuple[bytes, int, int, str, dict[str, object], bytes | None, str | None]:
+    adapter = resolve_adapter(job.job_type)
+    result = adapter.render(
+        scene_id=job.scene_id,
+        job_id=job.id,
+        input_payload=job.input_json or {},
+    )
+    metadata = {
+        "adapter": result.adapter_name,
+        "job_id": job.id,
+    }
+    return (
+        result.png_bytes,
+        result.width,
+        result.height,
+        result.subtype,
+        metadata,
+        result.mask_png_bytes,
+        result.mask_subtype,
+    )
+
+
 def process_one_job() -> bool:
     session_local = get_session_local()
     db = session_local()
@@ -302,12 +327,16 @@ def process_one_job() -> bool:
             _append_job_log(job, f"Composited {composed_objects} object artifact(s)")
             _append_job_log(job, "Final composite rendered via simple alpha pass")
         else:
-            render_result = render_placeholder_png(job_type=job.job_type, scene_id=job.scene_id, job_id=job.id)
-            composite_png = render_result.png_bytes
-            width = render_result.width
-            height = render_result.height
-            subtype = render_result.subtype
-            metadata_json = {"adapter": "fake_generator_v1", "job_id": job.id}
+            (
+                composite_png,
+                width,
+                height,
+                subtype,
+                metadata_json,
+                mask_png,
+                mask_subtype,
+            ) = _render_model_adapter_job(job)
+            _append_job_log(job, f"Rendered via adapter {metadata_json['adapter']}")
 
         artifact_id = _persist_artifact(
             db=db,
@@ -321,7 +350,20 @@ def process_one_job() -> bool:
 
         job.status = "SUCCEEDED"
         job.finished_at = datetime.now(UTC)
-        job.output_artifact_ids = [artifact_id]
+        output_artifact_ids = [artifact_id]
+        if job.job_type != "FINAL_COMPOSITE" and mask_png and mask_subtype:
+            mask_artifact_id = _persist_artifact(
+                db=db,
+                job=job,
+                png_bytes=mask_png,
+                subtype=mask_subtype,
+                width=width,
+                height=height,
+                metadata_json={"adapter": metadata_json.get("adapter"), "job_id": job.id, "kind": "mask"},
+            )
+            output_artifact_ids.append(mask_artifact_id)
+            _append_job_log(job, f"Generated mask artifact {mask_artifact_id}")
+        job.output_artifact_ids = output_artifact_ids
         _append_job_log(job, f"Generated artifact {artifact_id}")
         _append_job_log(job, "Job completed successfully")
         db.commit()
