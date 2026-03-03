@@ -101,7 +101,7 @@ This proves end-to-end plumbing works.
 
 ## MVP – Initial Usable Release
 
-### 9. [IN PROGRESS] Build Web App Shell and Routing
+### 9. [DONE] Build Web App Shell and Routing
 **Deliverable:**  
 React app with routes:
 - Project list
