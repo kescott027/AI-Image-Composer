@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
+import { SceneCanvas } from "../components/SceneCanvas";
 import { ROUTES } from "../routes";
 import { addLayerCommand, addObjectCommand, setOverarchingPromptCommand, toggleLayerVisibilityCommand } from "../state/commands";
 import { SceneStoreProvider, useSceneStore } from "../state/sceneStore";
@@ -86,15 +87,7 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
           </ul>
         </aside>
 
-        <section className="canvas-panel" aria-label="Canvas panel">
-          <h2>Canvas</h2>
-          <div className="canvas-placeholder">
-            <div>
-              <p>Objects in scene: {sceneSpec.objects.length}</p>
-              <p>Overarching prompt: {sceneSpec.scene.overarching_prompt || "(empty)"}</p>
-            </div>
-          </div>
-        </section>
+        <SceneCanvas sceneSpec={sceneSpec} />
 
         <aside className="panel panel-right">
           <h2>Right Panel</h2>

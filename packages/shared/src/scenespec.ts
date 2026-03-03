@@ -33,6 +33,13 @@ export interface SceneSpec {
     kind: string;
     prompt: string;
     negative_prompt?: string;
+    transform?: {
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+      rotation_deg: number;
+    };
   }>;
   relations: Array<{
     id: string;

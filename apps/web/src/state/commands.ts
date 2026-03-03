@@ -71,6 +71,7 @@ export function addObjectCommand(layerId: string, name: string): SceneCommand {
         return next;
       }
 
+      const objectIndex = next.objects.length;
       next.objects.push({
         id: createId("obj"),
         layer_id: layerId,
@@ -78,6 +79,13 @@ export function addObjectCommand(layerId: string, name: string): SceneCommand {
         kind: "prop",
         prompt: "",
         negative_prompt: "",
+        transform: {
+          x: 80 + objectIndex * 24,
+          y: 90 + objectIndex * 20,
+          width: 120,
+          height: 84,
+          rotation_deg: 0,
+        },
       });
       return next;
     },

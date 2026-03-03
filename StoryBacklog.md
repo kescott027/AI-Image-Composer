@@ -121,7 +121,7 @@ Frontend state management:
 
 ---
 
-### 11. [NOT STARTED] Implement Canvas Editor Core
+### 11. [DONE] Implement Canvas Editor Core
 **Deliverable:**  
 Canvas with:
 - Pan / zoom
