@@ -1,0 +1,38 @@
+name: Nightly Security Scan
+
+on:
+  schedule:
+    - cron: "17 7 * * *"
+  workflow_dispatch:
+
+jobs:
+  dependency-and-security-scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.7.0
+
+      - name: Setup uv + Python
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.7.8"
+          python-version: "3.12"
+          enable-cache: true
+
+      - name: Install dependencies
+        run: make setup
+
+      - name: Run dependency and security scan
+        run: make scan

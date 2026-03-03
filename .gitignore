@@ -152,6 +152,7 @@ __pycache__/
 .coverage
 .coverage.*
 htmlcov/
+.pre-commit-cache/
 .venv/
 venv/
 

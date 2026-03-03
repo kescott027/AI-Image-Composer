@@ -62,3 +62,7 @@ ensure_uv
 
 pnpm install
 uv sync --group dev
+
+if command -v git >/dev/null 2>&1 && git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  ./scripts/hooks-install.sh
+fi
