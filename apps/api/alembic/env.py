@@ -17,10 +17,15 @@ target_metadata = Base.metadata
 
 
 def _database_url() -> str:
-    return os.getenv(
-        "DATABASE_URL",
-        config.get_main_option("sqlalchemy.url"),
-    )
+    configured_url = os.getenv("DATABASE_URL")
+    if configured_url:
+        return configured_url
+
+    port = os.getenv("AIIC_POSTGRES_PORT")
+    if port:
+        return f"postgresql+psycopg://postgres:postgres@localhost:{port}/ai_image_composer"
+
+    return config.get_main_option("sqlalchemy.url")
 
 
 def run_migrations_offline() -> None:

@@ -43,7 +43,24 @@ Prerequisites:
 - `pnpm` (bootstrapped via `corepack` or `npm` if missing)
 - `uv` (bootstrapped via `brew`, `pipx`, or `curl` installer if missing)
 
+Database defaults:
+
+- Local Docker Postgres is exposed on host port `55432` by default.
+- Override with `AIIC_POSTGRES_PORT` in your shell or `.env` (see `.env.example`).
+
 Run:
+
+```bash
+make install
+```
+
+Then launch the full local stack with watchdog:
+
+```bash
+aiic
+```
+
+Manual mode (without `aiic`):
 
 ```bash
 make setup
@@ -93,6 +110,8 @@ Artifact storage:
 All primary workflows are wrapped in scripts under `/scripts` and exposed via `make` and `pnpm`.
 
 - [setup.sh](/Users/kylescott/git/AI-Image-Composer/scripts/setup.sh): install/prepare dependencies
+- [install.sh](/Users/kylescott/git/AI-Image-Composer/scripts/install.sh): prerequisite checks/install + alias setup
+- [aiic-watchdog.sh](/Users/kylescott/git/AI-Image-Composer/scripts/aiic-watchdog.sh): launch API/worker/web with watchdog + graceful shutdown
 - [lint.sh](/Users/kylescott/git/AI-Image-Composer/scripts/lint.sh): JS + Python linting
 - [format.sh](/Users/kylescott/git/AI-Image-Composer/scripts/format.sh): format write/check
 - [test.sh](/Users/kylescott/git/AI-Image-Composer/scripts/test.sh): JS + Python tests
@@ -110,10 +129,12 @@ All primary workflows are wrapped in scripts under `/scripts` and exposed via `m
 Reference: [Makefile](/Users/kylescott/git/AI-Image-Composer/Makefile)
 
 - `make setup`
+- `make install`
 - `make db-up`
 - `make db-down`
 - `make db-migrate`
 - `make db-downgrade`
+- `make aiic`
 - `make lint`
 - `make format`
 - `make format-check`
