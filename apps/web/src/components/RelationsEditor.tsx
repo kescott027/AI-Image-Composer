@@ -2,11 +2,14 @@ import { useMemo, useState } from "react";
 
 import type { RelationPredicate, SceneSpec } from "@ai-image-composer/shared";
 
+import type { RelationConflictRead } from "../api/scenes";
 import { addRelationCommand, type SceneCommand, removeRelationCommand } from "../state/commands";
 
 interface RelationsEditorProps {
   sceneSpec: SceneSpec;
   executeCommand: (command: SceneCommand) => void;
+  conflicts: RelationConflictRead[];
+  conflictMessage: string;
 }
 
 const RELATION_OPTIONS: Array<{ value: RelationPredicate; label: string }> = [
@@ -16,7 +19,12 @@ const RELATION_OPTIONS: Array<{ value: RelationPredicate; label: string }> = [
   { value: "NEAR", label: "near" },
 ];
 
-export function RelationsEditor({ sceneSpec, executeCommand }: RelationsEditorProps) {
+export function RelationsEditor({
+  sceneSpec,
+  executeCommand,
+  conflicts,
+  conflictMessage,
+}: RelationsEditorProps) {
   const [subjectObjectId, setSubjectObjectId] = useState("");
   const [predicate, setPredicate] = useState<RelationPredicate>("FACES");
   const [objectObjectId, setObjectObjectId] = useState("");
@@ -122,6 +130,60 @@ export function RelationsEditor({ sceneSpec, executeCommand }: RelationsEditorPr
           ))}
         </ul>
       )}
+
+      <div className="relation-conflicts">
+        <h4>Constraint Warnings</h4>
+        <p className="relation-conflict-message">{conflictMessage}</p>
+        {conflicts.length === 0 ? (
+          <p className="relation-empty">No directional conflicts detected.</p>
+        ) : (
+          <ul className="relation-conflict-list">
+            {conflicts.map((conflict, index) => (
+              <li
+                key={`${conflict.conflict_type}-${conflict.relation_ids.join("-")}-${index}`}
+                className="relation-conflict-item"
+              >
+                <p>{conflict.message}</p>
+                <p className="relation-conflict-meta">
+                  {conflict.conflict_type} on {conflict.relation_ids.join(", ")}
+                </p>
+                <ul className="relation-conflict-suggestions">
+                  {conflict.suggestions.map((suggestion, suggestionIndex) => (
+                    <li key={`${conflict.conflict_type}-suggestion-${suggestionIndex}`}>{suggestion}</li>
+                  ))}
+                </ul>
+                <div className="tool-row">
+                  <button
+                    type="button"
+                    className="mini-button"
+                    onClick={() => {
+                      const relationId = conflict.relation_ids[0];
+                      if (relationId) {
+                        executeCommand(removeRelationCommand(relationId));
+                      }
+                    }}
+                    disabled={conflict.relation_ids.length === 0}
+                  >
+                    Remove First Relation
+                  </button>
+                  <button
+                    type="button"
+                    className="mini-button"
+                    onClick={() => {
+                      conflict.relation_ids.forEach((relationId) => {
+                        executeCommand(removeRelationCommand(relationId));
+                      });
+                    }}
+                    disabled={conflict.relation_ids.length === 0}
+                  >
+                    Remove All In Conflict
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </section>
   );
 }

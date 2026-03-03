@@ -1,7 +1,10 @@
 import type { JobType, SceneSpec } from "@ai-image-composer/shared";
 import { parseErrorMessage } from "./http";
 
-export type SupportedJobType = Extract<JobType, "SKETCH" | "OBJECT_RENDER" | "FINAL_COMPOSITE">;
+export type SupportedJobType = Extract<
+  JobType,
+  "SKETCH" | "OBJECT_RENDER" | "FINAL_COMPOSITE" | "ZONE_RENDER" | "REFINE"
+>;
 export type JobStatus = "QUEUED" | "RUNNING" | "SUCCEEDED" | "FAILED" | "CANCELED";
 
 export interface JobRead {
@@ -73,11 +76,13 @@ export async function listJobs(request: ListJobsRequest): Promise<JobRead[]> {
 
 export function buildGenerationInput(
   sceneSpec: SceneSpec,
-  options?: { targetObjectId?: string },
+  options?: { targetObjectId?: string; targetZoneId?: string; sourceArtifactId?: string },
 ): Record<string, unknown> {
   return {
     scene_spec: sceneSpec,
     target_object_id: options?.targetObjectId,
+    target_zone_id: options?.targetZoneId,
+    source_artifact_id: options?.sourceArtifactId,
     requested_from: "web_editor",
     requested_at: new Date().toISOString(),
   };

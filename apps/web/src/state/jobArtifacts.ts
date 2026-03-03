@@ -49,9 +49,10 @@ export function mapLatestObjectRenderArtifactsByObjectId(jobs: JobRead[]): Recor
 export function mapLatestFinalCompositeArtifactId(jobs: JobRead[]): string | null {
   let selectedArtifactId: string | null = null;
   let selectedCreatedAtMs = -1;
+  const compositeJobTypes = new Set(["FINAL_COMPOSITE", "ZONE_RENDER", "REFINE"]);
 
   jobs.forEach((job) => {
-    if (job.job_type !== "FINAL_COMPOSITE" || job.status !== "SUCCEEDED") {
+    if (!compositeJobTypes.has(job.job_type) || job.status !== "SUCCEEDED") {
       return;
     }
 

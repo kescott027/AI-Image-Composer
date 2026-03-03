@@ -96,7 +96,11 @@ describe("jobs api client", () => {
   it("builds generation input with scene snapshot metadata", () => {
     const sceneSpec = createEmptySceneSpec("scene_input_1", "Input Test Scene");
 
-    const input = buildGenerationInput(sceneSpec, { targetObjectId: "obj_1" });
+    const input = buildGenerationInput(sceneSpec, {
+      targetObjectId: "obj_1",
+      targetZoneId: "zone_1",
+      sourceArtifactId: "art_comp",
+    });
 
     expect(input.scene_spec).toMatchObject({
       scene: {
@@ -104,6 +108,8 @@ describe("jobs api client", () => {
       },
     });
     expect(input.target_object_id).toBe("obj_1");
+    expect(input.target_zone_id).toBe("zone_1");
+    expect(input.source_artifact_id).toBe("art_comp");
     expect(input.requested_from).toBe("web_editor");
     expect(typeof input.requested_at).toBe("string");
   });

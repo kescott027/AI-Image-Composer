@@ -1,4 +1,5 @@
 from enum import Enum
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -85,13 +86,14 @@ class DefaultGenerationSettings(BaseModel):
     sampler: str = "default"
     steps: int = Field(default=30, ge=1)
     cfg_scale: float = Field(default=7.0, ge=0)
+    refine_strength: float = Field(default=0.25, ge=0, le=1)
 
 
 class ModelAdapterSettings(BaseModel):
     sketch_adapter: str = "fake_sketch_v1"
     object_render_adapter: str = "fake_object_v1"
     composite_adapter: str = "simple_alpha_v1"
-    zone_adapter: str = "disabled"
+    zone_adapter: str = "simple_zone_v1"
 
 
 class SceneSettings(BaseModel):
@@ -119,6 +121,8 @@ class ObjectTransform(BaseModel):
     rotation_deg: float = 0.0
     z_index: int = 0
     anchor: str = "center"
+    width: float = Field(default=120, ge=1)
+    height: float = Field(default=84, ge=1)
 
 
 class ArtifactRef(BaseModel):
@@ -150,12 +154,18 @@ class Relation(BaseModel):
     notes: str | None = ""
 
 
-class ZoneShape(BaseModel):
-    type: str = "rect"
+class ZonePoint(BaseModel):
     x: float
     y: float
-    width: float = Field(ge=0)
-    height: float = Field(ge=0)
+
+
+class ZoneShape(BaseModel):
+    type: Literal["rect", "lasso"] = "rect"
+    x: float
+    y: float
+    width: float = Field(ge=1)
+    height: float = Field(ge=1)
+    points: list[ZonePoint] = Field(default_factory=list)
 
 
 class Zone(BaseModel):

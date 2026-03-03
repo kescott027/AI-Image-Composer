@@ -25,6 +25,13 @@ export interface SceneVersionCreateResponse {
   scene_spec: SceneSpec;
 }
 
+export interface RelationConflictRead {
+  conflict_type: string;
+  message: string;
+  relation_ids: string[];
+  suggestions: string[];
+}
+
 export interface CreateSceneRequest {
   project_id: string;
   title: string;
@@ -113,4 +120,21 @@ export async function createSceneVersion(
     throw new Error(await parseErrorMessage(response, "Failed to save scene version"));
   }
   return (await response.json()) as SceneVersionCreateResponse;
+}
+
+export async function detectRelationConflicts(
+  sceneId: string,
+  sceneSpec?: SceneSpec,
+): Promise<RelationConflictRead[]> {
+  const response = await fetch(`/api/scenes/${sceneId}/relation-conflicts`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(sceneSpec ?? null),
+  });
+  if (!response.ok) {
+    throw new Error(await parseErrorMessage(response, "Failed to detect relation conflicts"));
+  }
+  return (await response.json()) as RelationConflictRead[];
 }

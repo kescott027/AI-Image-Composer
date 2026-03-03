@@ -3,10 +3,13 @@ import { describe, expect, it } from "vitest";
 import {
   addLayerCommand,
   addObjectCommand,
+  addZoneLassoCommand,
+  addZoneRectCommand,
   moveObjectCommand,
   moveObjectZOrderCommand,
   moveLayerCommand,
   rotateObjectCommand,
+  setRefineStrengthCommand,
   scaleObjectCommand,
   setObjectNegativePromptCommand,
   setObjectPromptCommand,
@@ -230,5 +233,42 @@ describe("scene store reducer", () => {
     expect(state.undoStack).toHaveLength(0);
     expect(state.redoStack).toHaveLength(0);
     expect(state.commandLog.at(-1)).toBe("LOAD_SCENE_SPEC");
+  });
+
+  it("adds zone shapes and updates refine strength through commands", () => {
+    let state = createInitialSceneStoreState("scene_store_zones");
+    const objectLayer = state.sceneSpec.layers.find((layer) => layer.type === "OBJECT");
+    expect(objectLayer).toBeDefined();
+    if (!objectLayer) {
+      return;
+    }
+
+    state = sceneStoreReducer(state, {
+      type: "EXECUTE_COMMAND",
+      command: addObjectCommand(objectLayer.id, "Anchor"),
+    });
+
+    state = sceneStoreReducer(state, {
+      type: "EXECUTE_COMMAND",
+      command: addZoneRectCommand("Rect Zone", 20, 30, 180, 120),
+    });
+    state = sceneStoreReducer(state, {
+      type: "EXECUTE_COMMAND",
+      command: addZoneLassoCommand("Lasso Zone", [
+        { x: 80, y: 80 },
+        { x: 180, y: 90 },
+        { x: 140, y: 170 },
+      ]),
+    });
+    state = sceneStoreReducer(state, {
+      type: "EXECUTE_COMMAND",
+      command: setRefineStrengthCommand(0.45),
+    });
+
+    expect(state.sceneSpec.zones).toHaveLength(2);
+    expect(state.sceneSpec.zones[0]?.shape.type).toBe("rect");
+    expect(state.sceneSpec.zones[1]?.shape.type).toBe("lasso");
+    expect(state.sceneSpec.zones[0]?.included_object_ids.length).toBe(1);
+    expect(state.sceneSpec.settings.defaults.refine_strength).toBe(0.45);
   });
 });

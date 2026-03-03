@@ -5,6 +5,7 @@ from io import BytesIO
 import time
 
 from PIL import Image
+from PIL import ImageFilter
 from sqlalchemy import asc
 from sqlalchemy import desc
 from sqlalchemy import select
@@ -247,6 +248,344 @@ def _render_final_composite(db: Session, job: db_models.Job) -> tuple[bytes, int
     return output.getvalue(), width, height, composed_objects
 
 
+def _input_payload(job: db_models.Job) -> dict[str, object]:
+    payload = job.input_json
+    if isinstance(payload, dict):
+        return payload
+    return {}
+
+
+def _zone_bounds(zone_payload: dict[str, object], canvas_width: int, canvas_height: int) -> tuple[int, int, int, int]:
+    shape = zone_payload.get("shape")
+    if not isinstance(shape, dict):
+        return (0, 0, 1, 1)
+
+    shape_type = shape.get("type")
+    if shape_type == "lasso":
+        points = shape.get("points")
+        if isinstance(points, list):
+            valid_points = [
+                (_to_float(point.get("x"), 0), _to_float(point.get("y"), 0))
+                for point in points
+                if isinstance(point, dict)
+            ]
+            if len(valid_points) >= 3:
+                xs = [point[0] for point in valid_points]
+                ys = [point[1] for point in valid_points]
+                min_x = int(max(0, min(xs)))
+                min_y = int(max(0, min(ys)))
+                max_x = int(min(canvas_width, max(xs)))
+                max_y = int(min(canvas_height, max(ys)))
+                return (
+                    min_x,
+                    min_y,
+                    max(1, max_x - min_x),
+                    max(1, max_y - min_y),
+                )
+
+    x = max(0, _to_int(shape.get("x"), 0))
+    y = max(0, _to_int(shape.get("y"), 0))
+    width = max(1, _to_int(shape.get("width"), 1))
+    height = max(1, _to_int(shape.get("height"), 1))
+    if x + width > canvas_width:
+        width = max(1, canvas_width - x)
+    if y + height > canvas_height:
+        height = max(1, canvas_height - y)
+    return (x, y, width, height)
+
+
+def _intersects(a: tuple[int, int, int, int], b: tuple[int, int, int, int]) -> bool:
+    ax, ay, aw, ah = a
+    bx, by, bw, bh = b
+    return ax < bx + bw and ax + aw > bx and ay < by + bh and ay + ah > by
+
+
+def _infer_zone_object_ids(
+    zone_bounds: tuple[int, int, int, int],
+    ordered_objects: list[dict[str, object]],
+) -> list[str]:
+    included: list[str] = []
+    for object_payload in ordered_objects:
+        object_id = object_payload.get("id")
+        if not isinstance(object_id, str):
+            continue
+        object_bounds = (
+            _to_int(object_payload.get("x"), 0),
+            _to_int(object_payload.get("y"), 0),
+            max(1, _to_int(object_payload.get("width"), 1)),
+            max(1, _to_int(object_payload.get("height"), 1)),
+        )
+        if _intersects(zone_bounds, object_bounds):
+            included.append(object_id)
+    return included
+
+
+def _zone_relation_ids(scene_spec: dict[str, object], object_ids: set[str]) -> list[str]:
+    relation_ids: list[str] = []
+    relations = scene_spec.get("relations")
+    if not isinstance(relations, list):
+        return relation_ids
+
+    for relation in relations:
+        if not isinstance(relation, dict):
+            continue
+        relation_id = relation.get("id")
+        subject = relation.get("subject_object_id")
+        object_ref = relation.get("object_object_id")
+        if (
+            isinstance(relation_id, str)
+            and isinstance(subject, str)
+            and isinstance(object_ref, str)
+            and subject in object_ids
+            and object_ref in object_ids
+        ):
+            relation_ids.append(relation_id)
+
+    return relation_ids
+
+
+def _image_to_png_bytes(image: Image.Image) -> bytes:
+    output = BytesIO()
+    image.save(output, format="PNG")
+    return output.getvalue()
+
+
+def _render_zone_composite(
+    db: Session,
+    job: db_models.Job,
+) -> tuple[bytes, int, int, dict[str, object], list[dict[str, object]]]:
+    scene_spec = _extract_scene_spec(job)
+    if scene_spec is None:
+        fallback = render_placeholder_png(job_type=job.job_type, scene_id=job.scene_id, job_id=job.id)
+        return (
+            fallback.png_bytes,
+            fallback.width,
+            fallback.height,
+            {"adapter": "simple_zone_v1", "job_id": job.id, "composed_zone_count": 0},
+            [],
+        )
+
+    width, height = _resolve_canvas_size(scene_spec)
+    canvas = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+    artifact_store = get_artifact_store()
+    latest_render_by_object, latest_sketch_by_object = _latest_object_artifacts(db, job.scene_id)
+    ordered_objects = _ordered_visible_objects(scene_spec)
+    object_by_id = {
+        object_payload["id"]: object_payload
+        for object_payload in ordered_objects
+        if isinstance(object_payload.get("id"), str)
+    }
+    zones = scene_spec.get("zones")
+    if not isinstance(zones, list):
+        zones = []
+
+    zone_artifacts: list[dict[str, object]] = []
+    composed_zone_count = 0
+
+    for zone_index, zone_payload in enumerate(zones):
+        if not isinstance(zone_payload, dict):
+            continue
+
+        zone_id = zone_payload.get("id")
+        zone_name = zone_payload.get("name")
+        if not isinstance(zone_id, str):
+            zone_id = f"zone_{zone_index + 1}"
+        if not isinstance(zone_name, str):
+            zone_name = zone_id
+
+        zone_x, zone_y, zone_width, zone_height = _zone_bounds(zone_payload, width, height)
+        zone_canvas = Image.new("RGBA", (zone_width, zone_height), (0, 0, 0, 0))
+
+        included_object_ids = zone_payload.get("included_object_ids")
+        if isinstance(included_object_ids, list):
+            zone_object_ids = [
+                object_id
+                for object_id in included_object_ids
+                if isinstance(object_id, str) and object_id in object_by_id
+            ]
+        else:
+            zone_object_ids = []
+        if not zone_object_ids:
+            zone_object_ids = _infer_zone_object_ids((zone_x, zone_y, zone_width, zone_height), ordered_objects)
+        zone_object_set = set(zone_object_ids)
+        relation_ids = _zone_relation_ids(scene_spec, zone_object_set)
+
+        rendered_object_count = 0
+        for object_payload in ordered_objects:
+            object_id = object_payload.get("id")
+            if not isinstance(object_id, str) or object_id not in zone_object_set:
+                continue
+
+            artifact_id = latest_render_by_object.get(object_id) or latest_sketch_by_object.get(object_id)
+            if artifact_id is None:
+                continue
+
+            stored_artifact = artifact_store.get(artifact_id)
+            if stored_artifact is None:
+                _append_job_log(job, f"Zone {zone_id}: missing artifact {artifact_id} for object {object_id}")
+                continue
+
+            try:
+                with Image.open(stored_artifact.file_path) as source_image:
+                    rgba_image = source_image.convert("RGBA")
+            except Exception as exc:
+                _append_job_log(job, f"Zone {zone_id}: failed to decode artifact {artifact_id}: {exc}")
+                continue
+
+            width_px = max(
+                1,
+                int(round(_to_float(object_payload.get("width"), 120) * _to_float(object_payload.get("scale_x"), 1))),
+            )
+            height_px = max(
+                1,
+                int(round(_to_float(object_payload.get("height"), 84) * _to_float(object_payload.get("scale_y"), 1))),
+            )
+            resized_image = rgba_image.resize((width_px, height_px), Image.Resampling.BICUBIC)
+            rotation_deg = _to_float(object_payload.get("rotation_deg"), 0)
+            placed_image = (
+                resized_image.rotate(-rotation_deg, expand=True, resample=Image.Resampling.BICUBIC)
+                if rotation_deg
+                else resized_image
+            )
+
+            center_x = _to_float(object_payload.get("x"), 0) + width_px / 2
+            center_y = _to_float(object_payload.get("y"), 0) + height_px / 2
+            paste_x = int(round(center_x - placed_image.width / 2 - zone_x))
+            paste_y = int(round(center_y - placed_image.height / 2 - zone_y))
+            zone_canvas.paste(placed_image, (paste_x, paste_y), placed_image)
+            rendered_object_count += 1
+
+        canvas.paste(zone_canvas, (zone_x, zone_y), zone_canvas)
+        composed_zone_count += 1
+        _append_job_log(
+            job,
+            f"Zone {zone_name} ({zone_id}) rendered with {rendered_object_count} object(s) and {len(relation_ids)} relation(s)",
+        )
+
+        zone_artifacts.append(
+            {
+                "png_bytes": _image_to_png_bytes(zone_canvas),
+                "width": zone_width,
+                "height": zone_height,
+                "subtype": "ZONE",
+                "metadata": {
+                    "adapter": "simple_zone_v1",
+                    "job_id": job.id,
+                    "zone_id": zone_id,
+                    "zone_name": zone_name,
+                    "included_object_ids": zone_object_ids,
+                    "relation_ids": relation_ids,
+                    "rendered_object_count": rendered_object_count,
+                },
+            }
+        )
+
+    return (
+        _image_to_png_bytes(canvas),
+        width,
+        height,
+        {
+            "adapter": "simple_zone_v1",
+            "job_id": job.id,
+            "composed_zone_count": composed_zone_count,
+            "zone_artifact_count": len(zone_artifacts),
+        },
+        zone_artifacts,
+    )
+
+
+def _latest_scene_artifact_for_job_types(
+    db: Session,
+    scene_id: str,
+    job_types: list[str],
+) -> str | None:
+    stmt = (
+        select(db_models.Job)
+        .where(
+            db_models.Job.scene_id == scene_id,
+            db_models.Job.status == "SUCCEEDED",
+            db_models.Job.job_type.in_(job_types),
+        )
+        .order_by(desc(db_models.Job.created_at))
+    )
+    jobs = db.execute(stmt).scalars().all()
+    for candidate in jobs:
+        outputs = candidate.output_artifact_ids or []
+        artifact_id = outputs[0] if isinstance(outputs, list) and outputs else None
+        if isinstance(artifact_id, str) and artifact_id:
+            return artifact_id
+    return None
+
+
+def _refine_strength(scene_spec: dict[str, object] | None) -> float:
+    if not isinstance(scene_spec, dict):
+        return 0.25
+    settings = scene_spec.get("settings")
+    if not isinstance(settings, dict):
+        return 0.25
+    defaults = settings.get("defaults")
+    if not isinstance(defaults, dict):
+        return 0.25
+    return min(1.0, max(0.0, _to_float(defaults.get("refine_strength"), 0.25)))
+
+
+def _render_refinement_pass(
+    db: Session,
+    job: db_models.Job,
+) -> tuple[bytes, int, int, dict[str, object]]:
+    scene_spec = _extract_scene_spec(job)
+    input_payload = _input_payload(job)
+    source_artifact_id = input_payload.get("source_artifact_id")
+    if not isinstance(source_artifact_id, str) or not source_artifact_id:
+        source_artifact_id = _latest_scene_artifact_for_job_types(
+            db,
+            job.scene_id,
+            ["ZONE_RENDER", "FINAL_COMPOSITE", "REFINE"],
+        )
+
+    strength = _refine_strength(scene_spec)
+    source_image: Image.Image | None = None
+
+    if source_artifact_id:
+        stored_artifact = get_artifact_store().get(source_artifact_id)
+        if stored_artifact is not None:
+            with Image.open(stored_artifact.file_path) as source:
+                source_image = source.convert("RGBA")
+
+    if source_image is None:
+        if scene_spec is not None:
+            fallback_png, width, height, _ = _render_final_composite(db, job)
+            with Image.open(BytesIO(fallback_png)) as fallback:
+                source_image = fallback.convert("RGBA")
+            source_artifact_id = "generated_fallback_composite"
+        else:
+            fallback = render_placeholder_png(job_type="FINAL_COMPOSITE", scene_id=job.scene_id, job_id=job.id)
+            with Image.open(BytesIO(fallback.png_bytes)) as fallback_image:
+                source_image = fallback_image.convert("RGBA")
+            source_artifact_id = "generated_fallback_placeholder"
+
+    blur_radius = max(0.5, 2.4 * strength)
+    softened = source_image.filter(ImageFilter.GaussianBlur(radius=blur_radius))
+    blend_alpha = min(0.6, max(0.08, 0.55 * strength))
+    blended = Image.blend(source_image, softened, blend_alpha)
+    refined = blended.filter(
+        ImageFilter.UnsharpMask(radius=1.2, percent=max(40, int(60 + 90 * strength)), threshold=3)
+    )
+
+    return (
+        _image_to_png_bytes(refined),
+        refined.width,
+        refined.height,
+        {
+            "adapter": "simple_refine_v1",
+            "job_id": job.id,
+            "source_artifact_id": source_artifact_id,
+            "refine_strength": round(strength, 2),
+            "seam_reduction": "gaussian_blend_unsharp",
+        },
+    )
+
+
 def _persist_artifact(
     db: Session,
     job: db_models.Job,
@@ -316,6 +655,10 @@ def process_one_job() -> bool:
 
         _append_job_log(job, f"Processing job {job.id} ({job.job_type})")
 
+        mask_png: bytes | None = None
+        mask_subtype: str | None = None
+        extra_artifact_ids: list[str] = []
+
         if job.job_type == "FINAL_COMPOSITE":
             composite_png, width, height, composed_objects = _render_final_composite(db=db, job=job)
             subtype = "COMPOSITE"
@@ -326,6 +669,32 @@ def process_one_job() -> bool:
             }
             _append_job_log(job, f"Composited {composed_objects} object artifact(s)")
             _append_job_log(job, "Final composite rendered via simple alpha pass")
+        elif job.job_type == "ZONE_RENDER":
+            (
+                composite_png,
+                width,
+                height,
+                metadata_json,
+                zone_artifacts,
+            ) = _render_zone_composite(db=db, job=job)
+            subtype = "COMPOSITE"
+            for zone_artifact in zone_artifacts:
+                zone_artifact_id = _persist_artifact(
+                    db=db,
+                    job=job,
+                    png_bytes=zone_artifact["png_bytes"],
+                    subtype=str(zone_artifact["subtype"]),
+                    width=_to_int(zone_artifact["width"], 1),
+                    height=_to_int(zone_artifact["height"], 1),
+                    metadata_json=zone_artifact["metadata"] if isinstance(zone_artifact["metadata"], dict) else {},
+                )
+                extra_artifact_ids.append(zone_artifact_id)
+            _append_job_log(job, f"Generated {len(extra_artifact_ids)} zone artifact(s)")
+            _append_job_log(job, "Zone render pipeline stitched zones into composite")
+        elif job.job_type == "REFINE":
+            composite_png, width, height, metadata_json = _render_refinement_pass(db=db, job=job)
+            subtype = "REFINED"
+            _append_job_log(job, f"Refinement pass applied at strength {metadata_json.get('refine_strength')}")
         else:
             (
                 composite_png,
@@ -350,8 +719,8 @@ def process_one_job() -> bool:
 
         job.status = "SUCCEEDED"
         job.finished_at = datetime.now(UTC)
-        output_artifact_ids = [artifact_id]
-        if job.job_type != "FINAL_COMPOSITE" and mask_png and mask_subtype:
+        output_artifact_ids = [artifact_id, *extra_artifact_ids]
+        if mask_png and mask_subtype:
             mask_artifact_id = _persist_artifact(
                 db=db,
                 job=job,

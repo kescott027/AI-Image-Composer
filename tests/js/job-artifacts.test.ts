@@ -191,4 +191,30 @@ describe("mapLatestFinalCompositeArtifactId", () => {
     const artifactId = mapLatestFinalCompositeArtifactId(jobs);
     expect(artifactId).toBeNull();
   });
+
+  it("returns latest successful zone or refine artifact when present", () => {
+    const jobs: JobRead[] = [
+      createJob({
+        id: "job_final",
+        job_type: "FINAL_COMPOSITE",
+        output_artifact_ids: ["art_comp"],
+        created_at: "2026-03-02T10:00:00Z",
+      }),
+      createJob({
+        id: "job_zone",
+        job_type: "ZONE_RENDER",
+        output_artifact_ids: ["art_zone_comp", "art_zone_1"],
+        created_at: "2026-03-02T11:00:00Z",
+      }),
+      createJob({
+        id: "job_refine",
+        job_type: "REFINE",
+        output_artifact_ids: ["art_refined"],
+        created_at: "2026-03-02T12:00:00Z",
+      }),
+    ];
+
+    const artifactId = mapLatestFinalCompositeArtifactId(jobs);
+    expect(artifactId).toBe("art_refined");
+  });
 });

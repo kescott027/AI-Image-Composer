@@ -3,6 +3,7 @@ import type { PointerEventHandler, WheelEventHandler } from "react";
 
 import type { SceneSpec } from "@ai-image-composer/shared";
 import { nextScaleFromWheel } from "./canvasMath";
+import type { ZoneDrawingMode } from "./ZoneEditor";
 
 interface SceneCanvasProps {
   sceneSpec: SceneSpec;
@@ -10,10 +11,18 @@ interface SceneCanvasProps {
   wireframeArtifactsByObjectId?: Record<string, string>;
   objectRenderArtifactsByObjectId?: Record<string, string>;
   finalCompositeArtifactId?: string | null;
+  zoneDrawingMode?: ZoneDrawingMode;
+  pendingLassoPoints?: Array<{ x: number; y: number }>;
+  onCreateRectZone?: (zone: { x: number; y: number; width: number; height: number }) => void;
+  onAddLassoPoint?: (point: { x: number; y: number }) => void;
   onSelectObject: (objectId: string | null) => void;
 }
 
 const LAYER_COLORS = ["#e65b2d", "#2d7de6", "#2aa06a", "#8a4de0", "#d04e89"];
+const VIEWBOX_WIDTH = 900;
+const VIEWBOX_HEIGHT = 600;
+const CANVAS_WIDTH = 820;
+const CANVAS_HEIGHT = 520;
 
 interface CanvasObject {
   id: string;
@@ -61,6 +70,10 @@ export function SceneCanvas({
   wireframeArtifactsByObjectId = {},
   objectRenderArtifactsByObjectId = {},
   finalCompositeArtifactId = null,
+  zoneDrawingMode = "NONE",
+  pendingLassoPoints = [],
+  onCreateRectZone,
+  onAddLassoPoint,
   onSelectObject,
 }: SceneCanvasProps) {
   const canvasRef = useRef<HTMLDivElement | null>(null);
@@ -68,6 +81,10 @@ export function SceneCanvas({
   const [offset, setOffset] = useState({ x: 30, y: 30 });
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState<{ x: number; y: number } | null>(null);
+  const [rectDraft, setRectDraft] = useState<{
+    start: { x: number; y: number };
+    current: { x: number; y: number };
+  } | null>(null);
 
   const visibleLayers = useMemo(
     () => sceneSpec.layers.filter((layer) => layer.visible).sort((a, b) => a.order - b.order),
@@ -102,8 +119,43 @@ export function SceneCanvas({
     setScale((current) => nextScaleFromWheel(current, event.deltaY));
   };
 
+  const pointerToScene = (event: { clientX: number; clientY: number }) => {
+    const target = canvasRef.current?.querySelector(".canvas-svg");
+    if (!target) {
+      return null;
+    }
+    const rect = target.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) {
+      return null;
+    }
+    const svgX = ((event.clientX - rect.left) / rect.width) * VIEWBOX_WIDTH;
+    const svgY = ((event.clientY - rect.top) / rect.height) * VIEWBOX_HEIGHT;
+    const x = Math.min(CANVAS_WIDTH, Math.max(0, (svgX - offset.x) / scale));
+    const y = Math.min(CANVAS_HEIGHT, Math.max(0, (svgY - offset.y) / scale));
+    return { x, y };
+  };
+
   const onPointerDown: PointerEventHandler<HTMLDivElement> = (event) => {
     if (event.button !== 0) {
+      return;
+    }
+
+    if (zoneDrawingMode === "RECT") {
+      const point = pointerToScene(event);
+      if (!point) {
+        return;
+      }
+      setRectDraft({ start: point, current: point });
+      (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+      return;
+    }
+
+    if (zoneDrawingMode === "LASSO") {
+      const point = pointerToScene(event);
+      if (point && onAddLassoPoint) {
+        onAddLassoPoint(point);
+      }
+      onSelectObject(null);
       return;
     }
 
@@ -118,13 +170,42 @@ export function SceneCanvas({
   };
 
   const onPointerMove: PointerEventHandler<HTMLDivElement> = (event) => {
+    if (zoneDrawingMode === "RECT" && rectDraft) {
+      const point = pointerToScene(event);
+      if (!point) {
+        return;
+      }
+      setRectDraft((current) =>
+        current
+          ? {
+              start: current.start,
+              current: point,
+            }
+          : null,
+      );
+      return;
+    }
+
     if (!isPanning || !panStart) {
       return;
     }
     setOffset({ x: event.clientX - panStart.x, y: event.clientY - panStart.y });
   };
 
-  const stopPanning = () => {
+  const stopPanning: PointerEventHandler<HTMLDivElement> = () => {
+    if (zoneDrawingMode === "RECT" && rectDraft) {
+      const x = Math.min(rectDraft.start.x, rectDraft.current.x);
+      const y = Math.min(rectDraft.start.y, rectDraft.current.y);
+      const width = Math.abs(rectDraft.current.x - rectDraft.start.x);
+      const height = Math.abs(rectDraft.current.y - rectDraft.start.y);
+
+      if (width >= 4 && height >= 4 && onCreateRectZone) {
+        onCreateRectZone({ x, y, width, height });
+      }
+      setRectDraft(null);
+      return;
+    }
+
     setIsPanning(false);
     setPanStart(null);
   };
@@ -150,9 +231,60 @@ export function SceneCanvas({
         onPointerUp={stopPanning}
         onPointerCancel={stopPanning}
       >
-        <svg className="canvas-svg" viewBox="0 0 900 600" role="img" aria-label="Scene canvas viewport">
+        <svg
+          className="canvas-svg"
+          viewBox={`0 0 ${VIEWBOX_WIDTH} ${VIEWBOX_HEIGHT}`}
+          role="img"
+          aria-label="Scene canvas viewport"
+        >
           <g transform={`translate(${offset.x}, ${offset.y}) scale(${scale})`}>
-            <rect x={0} y={0} width={820} height={520} rx={12} className="canvas-board" />
+            <rect x={0} y={0} width={CANVAS_WIDTH} height={CANVAS_HEIGHT} rx={12} className="canvas-board" />
+
+            {sceneSpec.zones.map((zone) => (
+              <g key={zone.id}>
+                {zone.shape.type === "lasso" && zone.shape.points && zone.shape.points.length >= 3 ? (
+                  <polygon
+                    points={zone.shape.points.map((point) => `${point.x},${point.y}`).join(" ")}
+                    className="canvas-zone"
+                  />
+                ) : (
+                  <rect
+                    x={zone.shape.x}
+                    y={zone.shape.y}
+                    width={zone.shape.width}
+                    height={zone.shape.height}
+                    rx={8}
+                    className="canvas-zone"
+                  />
+                )}
+                <text x={zone.shape.x + 8} y={zone.shape.y + 16} className="canvas-zone-label">
+                  {zone.name}
+                </text>
+              </g>
+            ))}
+
+            {zoneDrawingMode === "LASSO" && pendingLassoPoints.length > 0 ? (
+              <g>
+                <polyline
+                  points={pendingLassoPoints.map((point) => `${point.x},${point.y}`).join(" ")}
+                  className="canvas-zone-draft"
+                />
+                {pendingLassoPoints.map((point, index) => (
+                  <circle key={`lasso-point-${index}`} cx={point.x} cy={point.y} r={3} className="canvas-zone-point" />
+                ))}
+              </g>
+            ) : null}
+
+            {zoneDrawingMode === "RECT" && rectDraft ? (
+              <rect
+                x={Math.min(rectDraft.start.x, rectDraft.current.x)}
+                y={Math.min(rectDraft.start.y, rectDraft.current.y)}
+                width={Math.abs(rectDraft.current.x - rectDraft.start.x)}
+                height={Math.abs(rectDraft.current.y - rectDraft.start.y)}
+                rx={6}
+                className="canvas-zone-draft"
+              />
+            ) : null}
 
             {canvasObjects.map((object) => {
               const layerInfo = layerById.get(object.layerId);
@@ -170,6 +302,9 @@ export function SceneCanvas({
                   key={object.id}
                   data-object-id={object.id}
                   onClick={(event) => {
+                    if (zoneDrawingMode !== "NONE") {
+                      return;
+                    }
                     event.stopPropagation();
                     onSelectObject(object.id);
                   }}
@@ -213,8 +348,8 @@ export function SceneCanvas({
                 href={`/api/artifacts/${finalCompositeArtifactId}`}
                 x={0}
                 y={0}
-                width={820}
-                height={520}
+                width={CANVAS_WIDTH}
+                height={CANVAS_HEIGHT}
                 preserveAspectRatio="none"
                 pointerEvents="none"
               />

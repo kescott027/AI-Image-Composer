@@ -14,6 +14,10 @@ function createId(prefix: string): string {
   return `${prefix}_${token}`;
 }
 
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
 function normalizeLayerZIndex(sceneSpec: SceneSpec, layerId: string) {
   const objects = sceneSpec.objects
     .filter((object) => object.layer_id === layerId)
@@ -24,6 +28,46 @@ function normalizeLayerZIndex(sceneSpec: SceneSpec, layerId: string) {
     }
     object.transform.z_index = index;
   });
+}
+
+interface ZoneBounds {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+function objectBounds(sceneSpec: SceneSpec): Array<{ id: string } & ZoneBounds> {
+  return sceneSpec.objects.map((object, index) => {
+    const transform = object.transform ?? {
+      x: 60 + index * 18,
+      y: 60 + index * 18,
+      scale_x: 1,
+      scale_y: 1,
+      width: 110,
+      height: 80,
+      rotation_deg: 0,
+      z_index: index,
+      anchor: "top_left",
+    };
+    return {
+      id: object.id,
+      x: transform.x,
+      y: transform.y,
+      width: Math.max(1, transform.width * transform.scale_x),
+      height: Math.max(1, transform.height * transform.scale_y),
+    };
+  });
+}
+
+function intersects(a: ZoneBounds, b: ZoneBounds): boolean {
+  return a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
+}
+
+function inferZoneObjectIds(sceneSpec: SceneSpec, bounds: ZoneBounds): string[] {
+  return objectBounds(sceneSpec)
+    .filter((entry) => intersects(bounds, entry))
+    .map((entry) => entry.id);
 }
 
 export function setOverarchingPromptCommand(prompt: string): SceneCommand {
@@ -54,6 +98,17 @@ export function setStylePresetCommand(stylePreset: string): SceneCommand {
     apply(sceneSpec) {
       const next = cloneSceneSpec(sceneSpec);
       next.scene.style_preset = stylePreset;
+      return next;
+    },
+  };
+}
+
+export function setRefineStrengthCommand(refineStrength: number): SceneCommand {
+  return {
+    name: "SET_REFINE_STRENGTH",
+    apply(sceneSpec) {
+      const next = cloneSceneSpec(sceneSpec);
+      next.settings.defaults.refine_strength = Number(clamp(refineStrength, 0, 1).toFixed(2));
       return next;
     },
   };
@@ -256,24 +311,38 @@ export function removeRelationCommand(relationId: string): SceneCommand {
   };
 }
 
-export function addZoneRectCommand(name: string, x: number, y: number, width: number, height: number): SceneCommand {
+export function addZoneRectCommand(
+  name: string,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  options?: {
+    includedObjectIds?: string[];
+    guidancePrompt?: string;
+    negativePrompt?: string;
+  },
+): SceneCommand {
   return {
     name: "ADD_ZONE_RECT",
     apply(sceneSpec) {
       const next = cloneSceneSpec(sceneSpec);
+      const normalizedBounds = {
+        x,
+        y,
+        width: Math.max(1, width),
+        height: Math.max(1, height),
+      };
       next.zones.push({
         id: createId("zone"),
         name,
         shape: {
           type: "rect",
-          x,
-          y,
-          width: Math.max(1, width),
-          height: Math.max(1, height),
+          ...normalizedBounds,
         },
-        included_object_ids: [],
-        guidance_prompt: "",
-        negative_prompt: "",
+        included_object_ids: options?.includedObjectIds ?? inferZoneObjectIds(next, normalizedBounds),
+        guidance_prompt: options?.guidancePrompt ?? "",
+        negative_prompt: options?.negativePrompt ?? "",
       });
       return next;
     },
@@ -283,6 +352,11 @@ export function addZoneRectCommand(name: string, x: number, y: number, width: nu
 export function addZoneLassoCommand(
   name: string,
   points: Array<{ x: number; y: number }>,
+  options?: {
+    includedObjectIds?: string[];
+    guidancePrompt?: string;
+    negativePrompt?: string;
+  },
 ): SceneCommand {
   return {
     name: "ADD_ZONE_LASSO",
@@ -310,9 +384,16 @@ export function addZoneLassoCommand(
           height: Math.max(1, maxY - minY),
           points,
         },
-        included_object_ids: [],
-        guidance_prompt: "",
-        negative_prompt: "",
+        included_object_ids:
+          options?.includedObjectIds ??
+          inferZoneObjectIds(next, {
+            x: minX,
+            y: minY,
+            width: Math.max(1, maxX - minX),
+            height: Math.max(1, maxY - minY),
+          }),
+        guidance_prompt: options?.guidancePrompt ?? "",
+        negative_prompt: options?.negativePrompt ?? "",
       });
       return next;
     },

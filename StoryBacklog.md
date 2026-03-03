@@ -280,7 +280,7 @@ Tag this release.
 
 ---
 
-### 27. [NOT STARTED] Add Relation Conflict Detection
+### 27. [DONE] Add Relation Conflict Detection
 **Deliverable:**
 Constraint engine that:
 - Detects conflicting directional relations
@@ -291,7 +291,7 @@ Constraint engine that:
 
 ## Phase 3 – Zone-Based Generation
 
-### 28. [NOT STARTED] Implement Manual Zone Definition
+### 28. [DONE] Implement Manual Zone Definition
 **Deliverable:**
 UI for:
 - Rectangular/lasso zone drawing
@@ -300,7 +300,7 @@ UI for:
 
 ---
 
-### 29. [NOT STARTED] Implement Zone-Based Generation Pipeline
+### 29. [DONE] Implement Zone-Based Generation Pipeline
 **Deliverable:**
 Backend:
 - Break scene into zones
@@ -310,7 +310,7 @@ Backend:
 
 ---
 
-### 30. [NOT STARTED] Add Refinement Pass / Seam Reduction
+### 30. [DONE] Add Refinement Pass / Seam Reduction
 **Deliverable:**
 Optional refinement job:
 - Low-strength global pass

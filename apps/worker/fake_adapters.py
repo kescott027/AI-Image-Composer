@@ -30,6 +30,16 @@ _STYLE_MAP = {
         "background": (227, 250, 234, 255),
         "accent": (30, 120, 56, 255),
     },
+    "ZONE_RENDER": {
+        "subtype": "COMPOSITE",
+        "background": (236, 248, 255, 255),
+        "accent": (30, 93, 138, 255),
+    },
+    "REFINE": {
+        "subtype": "REFINED",
+        "background": (249, 242, 232, 255),
+        "accent": (149, 92, 32, 255),
+    },
 }
 
 

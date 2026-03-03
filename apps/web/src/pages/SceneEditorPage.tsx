@@ -8,11 +8,13 @@ import {
   type SupportedJobType,
 } from "../api/jobs";
 import {
+  detectRelationConflicts,
   createSceneVersion,
   getSceneSpec,
   getSceneVersion,
   listSceneVersions,
   upsertSceneSpec,
+  type RelationConflictRead,
   type SceneVersionRead,
 } from "../api/scenes";
 import { JobStatusPanel } from "../components/JobStatusPanel";
@@ -24,6 +26,7 @@ import {
 } from "../components/OverarchingPromptEditor";
 import { RelationsEditor } from "../components/RelationsEditor";
 import { SceneCanvas } from "../components/SceneCanvas";
+import { type ZoneDrawingMode, ZoneEditor } from "../components/ZoneEditor";
 import { ROUTES } from "../routes";
 import {
   mapLatestFinalCompositeArtifactId,
@@ -32,9 +35,12 @@ import {
 } from "../state/jobArtifacts";
 import {
   addObjectCommand,
+  addZoneLassoCommand,
+  addZoneRectCommand,
   moveObjectCommand,
   moveObjectZOrderCommand,
   rotateObjectCommand,
+  setRefineStrengthCommand,
   scaleObjectCommand,
   setNegativePromptCommand,
   setObjectNegativePromptCommand,
@@ -54,6 +60,15 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
   const [sceneVersionMessage, setSceneVersionMessage] = useState("No manual versions saved yet.");
   const [persistMessage, setPersistMessage] = useState("Scene persistence idle.");
   const [sceneVersions, setSceneVersions] = useState<SceneVersionRead[]>([]);
+  const [relationConflicts, setRelationConflicts] = useState<RelationConflictRead[]>([]);
+  const [relationConflictMessage, setRelationConflictMessage] = useState(
+    "Relation validation is idle.",
+  );
+  const [zoneDrawingMode, setZoneDrawingMode] = useState<ZoneDrawingMode>("NONE");
+  const [pendingZoneName, setPendingZoneName] = useState("Zone 1");
+  const [pendingLassoPoints, setPendingLassoPoints] = useState<Array<{ x: number; y: number }>>(
+    [],
+  );
   const [isHydratedFromApi, setIsHydratedFromApi] = useState(false);
   const [isLoadingScene, setIsLoadingScene] = useState(true);
   const [isPersistingScene, setIsPersistingScene] = useState(false);
@@ -92,6 +107,16 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
   const finalCompositeArtifactId = useMemo(
     () => mapLatestFinalCompositeArtifactId(sceneJobs),
     [sceneJobs],
+  );
+  const relationSignature = useMemo(
+    () =>
+      sceneSpec.relations
+        .map(
+          (relation) =>
+            `${relation.id}:${relation.subject_object_id}:${relation.predicate}:${relation.object_object_id}`,
+        )
+        .join("|"),
+    [sceneSpec.relations],
   );
 
   const refreshSceneVersions = useCallback(async () => {
@@ -169,6 +194,45 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
     };
   }, [sceneId, sceneSpec, isHydratedFromApi, isLoadingScene, commandLog.length]);
 
+  useEffect(() => {
+    if (!isHydratedFromApi || isLoadingScene) {
+      return;
+    }
+
+    let isActive = true;
+    const timer = window.setTimeout(async () => {
+      setRelationConflictMessage("Validating directional relations...");
+      try {
+        const conflicts = await detectRelationConflicts(sceneId, sceneSpec);
+        if (!isActive) {
+          return;
+        }
+        setRelationConflicts(conflicts);
+        setRelationConflictMessage(
+          conflicts.length === 0
+            ? "No directional conflicts detected."
+            : `${conflicts.length} conflict${conflicts.length === 1 ? "" : "s"} detected.`,
+        );
+      } catch (error) {
+        if (!isActive) {
+          return;
+        }
+        const message =
+          error instanceof Error ? error.message : "Failed to validate relation constraints";
+        setRelationConflictMessage(`Conflict validation unavailable: ${message}`);
+      }
+    }, 300);
+
+    return () => {
+      isActive = false;
+      window.clearTimeout(timer);
+    };
+  }, [isHydratedFromApi, isLoadingScene, relationSignature, sceneId, sceneSpec]);
+
+  useEffect(() => {
+    setPendingZoneName(`Zone ${sceneSpec.zones.length + 1}`);
+  }, [sceneSpec.zones.length]);
+
   const saveScene = useCallback(async () => {
     setIsPersistingScene(true);
     try {
@@ -236,6 +300,41 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
     }
   };
 
+  const beginRectZoneDrawing = () => {
+    setPendingLassoPoints([]);
+    setZoneDrawingMode("RECT");
+  };
+
+  const beginLassoZoneDrawing = () => {
+    setPendingLassoPoints([]);
+    setZoneDrawingMode("LASSO");
+  };
+
+  const cancelZoneDrawing = () => {
+    setZoneDrawingMode("NONE");
+    setPendingLassoPoints([]);
+  };
+
+  const createRectZone = (zone: { x: number; y: number; width: number; height: number }) => {
+    executeCommand(addZoneRectCommand(pendingZoneName || `Zone ${sceneSpec.zones.length + 1}`, zone.x, zone.y, zone.width, zone.height));
+    setZoneDrawingMode("NONE");
+  };
+
+  const appendLassoPoint = (point: { x: number; y: number }) => {
+    setPendingLassoPoints((current) => [...current, point]);
+  };
+
+  const finishLassoZone = () => {
+    if (pendingLassoPoints.length < 3) {
+      return;
+    }
+    executeCommand(addZoneLassoCommand(pendingZoneName || `Zone ${sceneSpec.zones.length + 1}`, pendingLassoPoints));
+    setPendingLassoPoints([]);
+    setZoneDrawingMode("NONE");
+  };
+
+  const refineStrength = sceneSpec.settings.defaults.refine_strength ?? 0.25;
+
   const addObject = () => {
     if (!objectLayer) {
       return;
@@ -280,16 +379,28 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
       setJobFeedback("Select an object before submitting an OBJECT_RENDER job.");
       return;
     }
+    if (jobType === "ZONE_RENDER" && sceneSpec.zones.length === 0) {
+      setJobFeedback("Define at least one zone before submitting a ZONE_RENDER job.");
+      return;
+    }
+    if (jobType === "REFINE" && !finalCompositeArtifactId) {
+      setJobFeedback("Generate a composite or zone render before submitting a REFINE job.");
+      return;
+    }
 
     setActiveSubmission(jobType);
     setJobFeedback(`Submitting ${jobType} job...`);
 
     try {
       await upsertSceneSpec(sceneId, sceneSpec);
-      const input =
-        (jobType === "OBJECT_RENDER" || jobType === "SKETCH") && selectedObject
-          ? buildGenerationInput(sceneSpec, { targetObjectId: selectedObject.id })
-          : buildGenerationInput(sceneSpec);
+      const inputOptions: { targetObjectId?: string; sourceArtifactId?: string } = {};
+      if ((jobType === "OBJECT_RENDER" || jobType === "SKETCH") && selectedObject) {
+        inputOptions.targetObjectId = selectedObject.id;
+      }
+      if (jobType === "REFINE" && finalCompositeArtifactId) {
+        inputOptions.sourceArtifactId = finalCompositeArtifactId;
+      }
+      const input = buildGenerationInput(sceneSpec, inputOptions);
       const job = await createJob({
         scene_id: sceneSpec.scene.id,
         job_type: jobType,
@@ -341,6 +452,10 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
           wireframeArtifactsByObjectId={wireframeArtifactsByObjectId}
           objectRenderArtifactsByObjectId={objectRenderArtifactsByObjectId}
           finalCompositeArtifactId={showFinalComposite ? finalCompositeArtifactId : null}
+          zoneDrawingMode={zoneDrawingMode}
+          pendingLassoPoints={pendingLassoPoints}
+          onCreateRectZone={createRectZone}
+          onAddLassoPoint={appendLassoPoint}
           onSelectObject={setSelectedObjectId}
         />
 
@@ -398,10 +513,47 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
             </div>
           </div>
           <ObjectPromptEditor selectedObject={selectedObject} onApply={applyObjectPrompt} />
-          <RelationsEditor sceneSpec={sceneSpec} executeCommand={executeCommand} />
+          <RelationsEditor
+            sceneSpec={sceneSpec}
+            executeCommand={executeCommand}
+            conflicts={relationConflicts}
+            conflictMessage={relationConflictMessage}
+          />
+          <ZoneEditor
+            sceneSpec={sceneSpec}
+            executeCommand={executeCommand}
+            drawingMode={zoneDrawingMode}
+            pendingZoneName={pendingZoneName}
+            pendingLassoPoints={pendingLassoPoints}
+            onZoneNameChange={setPendingZoneName}
+            onStartRect={beginRectZoneDrawing}
+            onStartLasso={beginLassoZoneDrawing}
+            onFinishLasso={finishLassoZone}
+            onCancelDrawing={cancelZoneDrawing}
+          />
+          <section className="generation-settings">
+            <h3>Generation Settings</h3>
+            <label className="field-label" htmlFor="refine-strength">
+              Refine Strength: {refineStrength.toFixed(2)}
+            </label>
+            <input
+              id="refine-strength"
+              type="range"
+              min={0}
+              max={1}
+              step={0.05}
+              value={refineStrength}
+              onChange={(event) =>
+                executeCommand(setRefineStrengthCommand(Number(event.target.value)))
+              }
+            />
+          </section>
           <section className="generation-tools">
             <h3>Generation Jobs</h3>
-            <p>Queue backend jobs. SKETCH and OBJECT_RENDER use the selected object.</p>
+            <p>
+              Queue backend jobs. SKETCH and OBJECT_RENDER use selected object. ZONE_RENDER
+              uses saved zones. REFINE applies a low-strength global pass.
+            </p>
             <div className="tool-row">
               <button
                 type="button"
@@ -426,6 +578,22 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
                 disabled={activeSubmission !== null}
               >
                 Generate Composite
+              </button>
+              <button
+                type="button"
+                className="button-link"
+                onClick={() => void submitGenerationJob("ZONE_RENDER")}
+                disabled={activeSubmission !== null || sceneSpec.zones.length === 0}
+              >
+                Generate Zones
+              </button>
+              <button
+                type="button"
+                className="button-link"
+                onClick={() => void submitGenerationJob("REFINE")}
+                disabled={activeSubmission !== null || !finalCompositeArtifactId}
+              >
+                Refine Composite
               </button>
             </div>
             <div className="tool-row">

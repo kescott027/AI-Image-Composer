@@ -282,6 +282,30 @@ p {
   fill: #3d5678;
 }
 
+.canvas-zone {
+  fill: rgba(42, 160, 106, 0.14);
+  stroke: rgba(32, 125, 81, 0.9);
+  stroke-width: 2;
+  stroke-dasharray: 5 4;
+}
+
+.canvas-zone-label {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  fill: #1f6948;
+}
+
+.canvas-zone-draft {
+  fill: rgba(230, 91, 45, 0.18);
+  stroke: rgba(165, 63, 31, 0.95);
+  stroke-width: 2;
+  stroke-dasharray: 4 4;
+}
+
+.canvas-zone-point {
+  fill: #a53f1f;
+}
+
 .canvas-footer {
   margin-top: 0.65rem;
   display: flex;
@@ -401,6 +425,108 @@ p {
   gap: 0.4rem;
   font-family: "IBM Plex Mono", monospace;
   font-size: 0.73rem;
+}
+
+.relation-conflicts {
+  margin-top: 0.7rem;
+  border-top: 1px dashed var(--line);
+  padding-top: 0.7rem;
+}
+
+.relation-conflicts h4 {
+  margin: 0 0 0.3rem;
+  font-size: 0.85rem;
+}
+
+.relation-conflict-message {
+  margin-top: 0.2rem;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.72rem;
+}
+
+.relation-conflict-list {
+  list-style: none;
+  margin: 0.45rem 0 0;
+  padding: 0;
+}
+
+.relation-conflict-item {
+  border: 1px solid rgba(230, 91, 45, 0.35);
+  border-radius: 10px;
+  padding: 0.48rem 0.55rem;
+  margin-bottom: 0.4rem;
+  background: rgba(230, 91, 45, 0.07);
+}
+
+.relation-conflict-item p {
+  margin-top: 0.2rem;
+  font-size: 0.74rem;
+}
+
+.relation-conflict-meta {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.7rem;
+  color: #88462f;
+}
+
+.relation-conflict-suggestions {
+  margin: 0.35rem 0 0;
+  padding-left: 1rem;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.7rem;
+  color: #6d4b35;
+}
+
+.zone-editor {
+  margin-top: 0.95rem;
+  border-top: 1px dashed var(--line);
+  padding-top: 0.75rem;
+}
+
+.zone-editor h3 {
+  margin: 0 0 0.3rem;
+  font-size: 0.92rem;
+}
+
+.zone-mode-help {
+  margin-top: 0.5rem;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.72rem;
+}
+
+.zone-list {
+  list-style: none;
+  margin: 0.45rem 0 0;
+  padding: 0;
+}
+
+.zone-item {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0.42rem 0.55rem;
+  margin-bottom: 0.38rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.72rem;
+}
+
+.generation-settings {
+  margin-top: 0.95rem;
+  border-top: 1px dashed var(--line);
+  padding-top: 0.75rem;
+}
+
+.generation-settings h3 {
+  margin: 0 0 0.3rem;
+  font-size: 0.92rem;
+}
+
+.generation-settings input[type="range"] {
+  width: 100%;
+  margin-top: 0.35rem;
 }
 
 .generation-tools {

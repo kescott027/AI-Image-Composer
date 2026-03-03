@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session
 from apps.api.db import models as db_models
 from apps.api.dependencies import get_db_session
 from apps.api.models.artifact_store import ArtifactRecord
+from apps.api.models.constraints import RelationConflictRead
 from apps.api.models.crud import ProjectCreate
 from apps.api.models.crud import ProjectRead
 from apps.api.models.crud import SceneCreate
@@ -31,6 +32,7 @@ from apps.api.models.jobs import JobRead
 from apps.api.models.scenespec import SceneSpec
 from apps.api.services.artifact_store import LocalArtifactStore
 from apps.api.services.prompt_compiler import compile_prompt_for_job
+from apps.api.services.relation_conflicts import detect_relation_conflicts
 
 app = FastAPI(title="AI Image Composer API", version="0.1.0")
 artifact_store = LocalArtifactStore.from_env()
@@ -188,12 +190,13 @@ def _initial_scene_spec(scene: db_models.Scene) -> dict:
                     "sampler": "default",
                     "steps": 30,
                     "cfg_scale": 7.0,
+                    "refine_strength": 0.25,
                 },
                 "models": {
                     "sketch_adapter": "fake_sketch_v1",
                     "object_render_adapter": "fake_object_v1",
                     "composite_adapter": "simple_alpha_v1",
-                    "zone_adapter": "disabled",
+                    "zone_adapter": "simple_zone_v1",
                 },
             },
             "history": {"scene_version": 0, "notes": ""},
@@ -382,6 +385,44 @@ def get_scene_version(
         raise HTTPException(status_code=404, detail="Scene version not found")
 
     return SceneSpec.model_validate(version.scene_spec_json)
+
+
+@app.post(
+    "/scenes/{scene_id}/relation-conflicts",
+    response_model=list[RelationConflictRead],
+    tags=["scenes"],
+)
+def get_relation_conflicts(
+    scene_id: str,
+    scene_spec: SceneSpec | None = Body(default=None),
+    db: Session = Depends(get_db_session),
+) -> list[RelationConflictRead]:
+    _get_scene_or_404(db, scene_id)
+
+    if scene_spec is not None and scene_spec.scene.id != scene_id:
+        raise HTTPException(
+            status_code=400,
+            detail="scene_id in path must match scene.id in payload",
+        )
+
+    if scene_spec is None:
+        latest = _get_latest_scene_version(db, scene_id)
+        if latest is None:
+            raise HTTPException(status_code=404, detail="No SceneSpec exists to validate")
+        payload = latest.scene_spec_json
+    else:
+        payload = scene_spec.model_dump(mode="json")
+
+    conflicts = detect_relation_conflicts(payload)
+    return [
+        RelationConflictRead(
+            conflict_type=conflict.conflict_type,
+            message=conflict.message,
+            relation_ids=conflict.relation_ids,
+            suggestions=conflict.suggestions,
+        )
+        for conflict in conflicts
+    ]
 
 
 @app.post("/jobs", response_model=JobRead, tags=["jobs"])
