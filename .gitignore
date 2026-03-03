@@ -159,3 +159,6 @@ venv/
 # uv / pnpm artifacts
 uv.lock
 pnpm-lock.yaml
+
+# Local artifact storage
+.artifacts/

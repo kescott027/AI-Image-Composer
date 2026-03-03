@@ -76,6 +76,11 @@ Export API OpenAPI schema:
 make openapi
 ```
 
+Artifact storage:
+
+- Local artifacts are stored under `.artifacts/` by default.
+- Override with `ARTIFACTS_ROOT=/custom/path`.
+
 ## Self-Serve Scripts
 
 All primary workflows are wrapped in scripts under `/scripts` and exposed via `make` and `pnpm`.

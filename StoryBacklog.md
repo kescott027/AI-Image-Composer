@@ -57,7 +57,7 @@ Includes docker-compose for local Postgres.
 
 ---
 
-### 5. [NOT STARTED] Implement Artifact Storage Abstraction (Local First)
+### 5. [DONE] Implement Artifact Storage Abstraction (Local First)
 **Deliverable:**  
 Backend module to:
 - Store images/masks/thumbnails locally
