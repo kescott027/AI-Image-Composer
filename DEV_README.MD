@@ -136,6 +136,12 @@ API abuse protection:
 - In-memory per-client rate limiting is enabled by default.
 - Configure with `AIIC_RATE_LIMIT_ENABLED`, `AIIC_RATE_LIMIT_WINDOW_SECONDS`, `AIIC_RATE_LIMIT_MAX_REQUESTS`, and `AIIC_RATE_LIMIT_EXEMPT_PATHS`.
 
+Operational logging:
+
+- API and worker emit structured logs with request/job context.
+- Every API response includes `X-Request-ID` (propagates incoming `x-request-id` if provided).
+- Configure log verbosity with `AIIC_LOG_LEVEL`.
+
 ## Self-Serve Scripts
 
 All primary workflows are wrapped in scripts under `/scripts` and exposed via `make` and `pnpm`.

@@ -1,5 +1,8 @@
 import hashlib
 import json
+import logging
+import os
+import time
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from uuid import uuid4
@@ -31,6 +34,23 @@ from starlette.responses import Response
 app = FastAPI(title="AI Image Composer API", version="0.1.0")
 artifact_store = LocalArtifactStore.from_env()
 rate_limiter = RateLimiter.from_env()
+
+
+def _configure_api_logger() -> logging.Logger:
+    level_name = os.getenv("AIIC_LOG_LEVEL", "INFO").upper()
+    level = getattr(logging, level_name, logging.INFO)
+    root_logger = logging.getLogger()
+    if not root_logger.handlers:
+        logging.basicConfig(
+            level=level,
+            format="%(asctime)s level=%(levelname)s service=api event=%(message)s",
+        )
+    logger = logging.getLogger("aiic.api")
+    logger.setLevel(level)
+    return logger
+
+
+api_logger = _configure_api_logger()
 
 
 def reset_rate_limiter_state() -> None:
@@ -213,29 +233,77 @@ def _job_input_hash(scene_id: str, job_type: str, payload: dict[str, object]) ->
     return f"sha256:{digest}"
 
 
+def _request_id(request: Request) -> str:
+    header_value = request.headers.get("x-request-id")
+    if isinstance(header_value, str):
+        candidate = header_value.strip()
+        if candidate:
+            return candidate[:128]
+    return f"req_{uuid4().hex[:16]}"
+
+
 @app.middleware("http")
 async def enforce_rate_limit(
     request: Request, call_next: Callable[[Request], Awaitable[Response]]
 ) -> Response:
+    request_id = _request_id(request)
+    started_at = time.perf_counter()
+    method = request.method
+    path = request.url.path
     client_host = request.client.host if request.client else "unknown"
-    decision = rate_limiter.evaluate(client_id=client_host, path=request.url.path)
+    decision = rate_limiter.evaluate(client_id=client_host, path=path)
     if not decision.allowed:
         headers = {
             "X-RateLimit-Limit": str(decision.limit),
             "X-RateLimit-Remaining": "0",
+            "X-Request-ID": request_id,
         }
         if decision.retry_after_seconds is not None:
             headers["Retry-After"] = str(decision.retry_after_seconds)
+        duration_ms = int((time.perf_counter() - started_at) * 1000)
+        api_logger.warning(
+            "request_blocked method=%s path=%s status=%s client=%s request_id=%s duration_ms=%s",
+            method,
+            path,
+            429,
+            client_host,
+            request_id,
+            duration_ms,
+        )
         return JSONResponse(
             status_code=429,
             content={"detail": "Rate limit exceeded. Please retry later."},
             headers=headers,
         )
 
-    response = await call_next(request)
+    try:
+        response = await call_next(request)
+    except Exception:
+        duration_ms = int((time.perf_counter() - started_at) * 1000)
+        api_logger.exception(
+            "request_error method=%s path=%s client=%s request_id=%s duration_ms=%s",
+            method,
+            path,
+            client_host,
+            request_id,
+            duration_ms,
+        )
+        raise
+
+    response.headers["X-Request-ID"] = request_id
     if rate_limiter.enabled and not rate_limiter.is_exempt(request.url.path):
         response.headers["X-RateLimit-Limit"] = str(decision.limit)
         response.headers["X-RateLimit-Remaining"] = str(decision.remaining)
+    duration_ms = int((time.perf_counter() - started_at) * 1000)
+    api_logger.info(
+        "request_complete method=%s path=%s status=%s client=%s request_id=%s duration_ms=%s",
+        method,
+        path,
+        response.status_code,
+        client_host,
+        request_id,
+        duration_ms,
+    )
     return response
 
 
