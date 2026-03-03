@@ -17,6 +17,14 @@ import sys
 from dataclasses import dataclass
 from datetime import datetime
 from urllib import error, request
+from urllib.parse import urlparse
+
+
+def _validated_http_url(url: str) -> str:
+    parsed = urlparse(url)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        raise ValueError("base URL must be an absolute http(s) URL")
+    return url.rstrip("/")
 
 
 @dataclass
@@ -38,7 +46,7 @@ class ApiClient:
         )
 
         try:
-            with request.urlopen(req, timeout=30) as resp:
+            with request.urlopen(req, timeout=30) as resp:  # nosec B310
                 raw = resp.read().decode("utf-8")
                 return json.loads(raw) if raw else {}
         except error.HTTPError as exc:
@@ -163,7 +171,7 @@ def _build_scene_spec(scene_id: str, title: str) -> dict:
 
 
 def run(base_url: str) -> None:
-    client = ApiClient(base_url=base_url.rstrip("/"))
+    client = ApiClient(base_url=_validated_http_url(base_url))
 
     print("[1/8] Creating project")
     project = client.call("POST", "/projects", {"name": "IUR Smoke Project"})
@@ -188,11 +196,13 @@ def run(base_url: str) -> None:
     print("[4/8] Saving SceneSpec with prompts, objects, and relations")
     scene_spec = _build_scene_spec(scene_id=scene_id, title="IUR Smoke Scene")
     saved_spec = client.call("PUT", f"/scenes/{scene_id}/spec", scene_spec)
-    assert saved_spec["scene"]["id"] == scene_id
+    if saved_spec["scene"]["id"] != scene_id:
+        raise RuntimeError("Saved scene spec does not match requested scene")
 
     print("[5/8] Saving manual version")
     version = client.call("POST", f"/scenes/{scene_id}/versions", scene_spec)
-    assert version["version"]["version_number"] >= 2
+    if version["version"]["version_number"] < 2:
+        raise RuntimeError("Expected scene version number >= 2 after manual save")
 
     print("[6/8] Queueing sketch + object render jobs")
     client.call(
@@ -230,9 +240,12 @@ def run(base_url: str) -> None:
     jobs = client.call("GET", f"/jobs?scene_id={scene_id}")
     scenes = client.call("GET", f"/scenes?project_id={project_id}")
 
-    assert len(versions) >= 2
-    assert len(jobs) >= 3
-    assert any(item["id"] == scene_id for item in scenes)
+    if len(versions) < 2:
+        raise RuntimeError("Expected at least 2 scene versions")
+    if len(jobs) < 3:
+        raise RuntimeError("Expected at least 3 jobs")
+    if not any(item["id"] == scene_id for item in scenes):
+        raise RuntimeError("Scene missing from project scene listing")
 
     print("IUR smoke flow completed successfully")
     print(json.dumps({"project_id": project_id, "scene_id": scene_id, "jobs": len(jobs)}, indent=2))

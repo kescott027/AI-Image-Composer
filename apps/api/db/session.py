@@ -1,8 +1,6 @@
+from apps.api.db.config import DATABASE_URL
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-
-from apps.api.db.config import DATABASE_URL
-
 
 _engine = None
 _session_local = None

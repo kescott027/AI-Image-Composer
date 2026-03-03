@@ -1,19 +1,19 @@
 from datetime import datetime
 
-from sqlalchemy import Boolean
-from sqlalchemy import DateTime
-from sqlalchemy import Float
-from sqlalchemy import ForeignKey
-from sqlalchemy import Index
-from sqlalchemy import Integer
-from sqlalchemy import JSON
-from sqlalchemy import String
-from sqlalchemy import Text
-from sqlalchemy import func
-from sqlalchemy.orm import Mapped
-from sqlalchemy.orm import mapped_column
-
 from apps.api.db.base import Base
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    func,
+)
+from sqlalchemy.orm import Mapped, mapped_column
 
 
 class Project(Base):

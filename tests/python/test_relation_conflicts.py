@@ -1,6 +1,5 @@
-from fastapi.testclient import TestClient
-
 from apps.api.services.relation_conflicts import detect_relation_conflicts
+from fastapi.testclient import TestClient
 
 
 def _create_scene(client: TestClient) -> str:
@@ -44,7 +43,12 @@ def _base_scene_spec(scene_id: str) -> dict[str, object]:
         "settings": {
             "units": "px",
             "canvas": {"width": 820, "height": 520, "background_color": "transparent"},
-            "defaults": {"seed_policy": "per_job", "sampler": "default", "steps": 30, "cfg_scale": 7},
+            "defaults": {
+                "seed_policy": "per_job",
+                "sampler": "default",
+                "steps": 30,
+                "cfg_scale": 7,
+            },
             "models": {
                 "sketch_adapter": "fake_sketch_v1",
                 "object_render_adapter": "fake_object_v1",
@@ -147,4 +151,3 @@ def test_detect_relation_conflicts_endpoint_uses_saved_spec_when_payload_is_null
     body = response.json()
     assert len(body) == 1
     assert body[0]["conflict_type"] == "CONTRADICTORY_PAIR"
-

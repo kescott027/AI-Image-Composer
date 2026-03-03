@@ -23,13 +23,13 @@ def _minimal_scene_spec(scene_id: str) -> dict:
         "scene": {
             "id": scene_id,
             "title": "Contract Test Scene",
-            "overarching_prompt": "A simple contract test"
+            "overarching_prompt": "A simple contract test",
         },
         "layers": [],
         "objects": [],
         "relations": [],
         "artifacts": [],
-        "jobs": []
+        "jobs": [],
     }
 
 

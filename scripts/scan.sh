@@ -12,7 +12,7 @@ for target in apps packages scripts; do
 done
 
 if [[ ${#python_targets[@]} -gt 0 ]]; then
-  uv run bandit -q -r "${python_targets[@]}"
+  uv run bandit -q -c pyproject.toml -r "${python_targets[@]}"
 else
   echo "No Python source directories found for Bandit scan; skipping."
 fi

@@ -37,6 +37,7 @@ pnpm run dev:web
 ```
 
 2. In the browser:
+
 - Create project and scene from project/scene list pages.
 - In editor, add objects and prompts.
 - Click `Generate Wireframe`, `Render Object`, and `Generate Composite`.

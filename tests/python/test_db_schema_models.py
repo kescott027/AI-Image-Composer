@@ -1,6 +1,5 @@
-from apps.api.db.base import Base
 from apps.api.db import models  # noqa: F401
-
+from apps.api.db.base import Base
 
 REQUIRED_TABLES = {
     "projects",

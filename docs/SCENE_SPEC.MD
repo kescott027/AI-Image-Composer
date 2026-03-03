@@ -3,6 +3,7 @@
 This document defines the canonical JSON structure (“SceneSpec”) that both the React UI and Python API use as the source of truth. All editor operations mutate this structure. All ML jobs consume a snapshot of this structure.
 
 Design goals:
+
 - Deterministic: the same spec + same settings should reproduce the same outputs.
 - Versionable: store full snapshots early; evolve to diffs later.
 - Extensible: add zones, constraints, depth, materials without breaking old projects.
@@ -15,6 +16,7 @@ Design goals:
 SceneSpec is a single JSON object.
 
 Required fields:
+
 - `schema_version`
 - `scene`
 - `layers`
@@ -24,6 +26,7 @@ Required fields:
 - `jobs`
 
 Optional (recommended):
+
 - `zones`
 - `constraints`
 - `settings`
@@ -840,3 +843,4 @@ apps/api/models/scenespec.py (Pydantic models)
 A single “upsert SceneSpec” API route and a “get SceneSpec” route
 
 Basic serializer/deserializer with schema_version migration hooks
+```

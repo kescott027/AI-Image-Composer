@@ -116,8 +116,9 @@ export function RelationsEditor({
           {sceneSpec.relations.map((relation) => (
             <li key={relation.id} className="relation-item">
               <span>
-                {(displayNameById.get(relation.subject_object_id) ?? relation.subject_object_id)} {relation.predicate.toLowerCase()} {" "}
-                {(displayNameById.get(relation.object_object_id) ?? relation.object_object_id)}
+                {displayNameById.get(relation.subject_object_id) ?? relation.subject_object_id}{" "}
+                {relation.predicate.toLowerCase()}{" "}
+                {displayNameById.get(relation.object_object_id) ?? relation.object_object_id}
               </span>
               <button
                 type="button"
@@ -149,7 +150,9 @@ export function RelationsEditor({
                 </p>
                 <ul className="relation-conflict-suggestions">
                   {conflict.suggestions.map((suggestion, suggestionIndex) => (
-                    <li key={`${conflict.conflict_type}-suggestion-${suggestionIndex}`}>{suggestion}</li>
+                    <li key={`${conflict.conflict_type}-suggestion-${suggestionIndex}`}>
+                      {suggestion}
+                    </li>
                   ))}
                 </ul>
                 <div className="tool-row">

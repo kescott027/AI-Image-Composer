@@ -4,7 +4,7 @@ Describe what changed and why.
 
 ## Changes
 
-- 
+-
 
 ## Validation
 

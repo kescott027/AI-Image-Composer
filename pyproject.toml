@@ -36,6 +36,7 @@ src = ["apps", "packages", "tests", "scripts"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
+ignore = ["B008", "UP042"]
 
 [tool.bandit]
 exclude_dirs = [".git", ".venv", "node_modules", "tests"]

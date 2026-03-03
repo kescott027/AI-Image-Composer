@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-
 _DIRECTIONAL_PREDICATES = {"LEFT_OF", "RIGHT_OF", "ABOVE", "BELOW"}
 _CONTRADICTORY_BY_PREDICATE = {
     "LEFT_OF": "RIGHT_OF",
@@ -67,7 +66,8 @@ def detect_relation_conflicts(scene_spec: dict[str, object]) -> list[RelationCon
     conflicts: list[RelationConflict] = []
     seen_signatures: set[tuple[str, tuple[str, ...]]] = set()
 
-    # Opposing directional loops: A LEFT_OF B and B LEFT_OF A (and equivalent for other directional predicates).
+    # Opposing directional loops: A LEFT_OF B and B LEFT_OF A
+    # (and equivalent for other directional predicates).
     for relation in directional:
         opposite_matches = [
             candidate
@@ -110,7 +110,11 @@ def detect_relation_conflicts(scene_spec: dict[str, object]) -> list[RelationCon
     for relation in directional:
         key = (str(relation["subject"]), str(relation["object"]))
         pair_map.setdefault(key, set()).add(str(relation["predicate"]))
-        predicate_key = (str(relation["subject"]), str(relation["object"]), str(relation["predicate"]))
+        predicate_key = (
+            str(relation["subject"]),
+            str(relation["object"]),
+            str(relation["predicate"]),
+        )
         relation_ids_by_pair_predicate.setdefault(predicate_key, []).append(str(relation["id"]))
 
     for key, predicates in pair_map.items():
@@ -136,7 +140,10 @@ def detect_relation_conflicts(scene_spec: dict[str, object]) -> list[RelationCon
             conflicts.append(
                 RelationConflict(
                     conflict_type="CONTRADICTORY_PAIR",
-                    message=f"{subject_name} has both {predicate.lower()} and {opposite.lower()} relative to {object_name}.",
+                    message=(
+                        f"{subject_name} has both {predicate.lower()} and "
+                        f"{opposite.lower()} relative to {object_name}."
+                    ),
                     relation_ids=list(relation_ids),
                     suggestions=[
                         f"Keep only one of {predicate.lower()} or {opposite.lower()}.",

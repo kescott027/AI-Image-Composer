@@ -1,18 +1,16 @@
 from __future__ import annotations
 
 import base64
-from dataclasses import dataclass
-from io import BytesIO
 import json
 import os
+from dataclasses import dataclass
+from io import BytesIO
 from typing import Protocol
 from urllib import error, request
-
-from PIL import Image
-from PIL import ImageFilter
-from PIL import ImageOps
+from urllib.parse import urlparse
 
 from apps.worker.fake_adapters import render_placeholder_png
+from PIL import Image, ImageFilter, ImageOps
 
 
 @dataclass(frozen=True)
@@ -27,8 +25,9 @@ class AdapterResult:
 
 
 class GenerationAdapter(Protocol):
-    def render(self, *, scene_id: str, job_id: str, input_payload: dict[str, object]) -> AdapterResult:
-        ...
+    def render(
+        self, *, scene_id: str, job_id: str, input_payload: dict[str, object]
+    ) -> AdapterResult: ...
 
 
 def _prompt_from_payload(payload: dict[str, object]) -> tuple[str, str]:
@@ -42,7 +41,9 @@ def _prompt_from_payload(payload: dict[str, object]) -> tuple[str, str]:
     prompt = payload.get("prompt")
     negative = payload.get("negative_prompt")
     return (
-        prompt.strip() if isinstance(prompt, str) and prompt.strip() else "high quality detailed subject",
+        prompt.strip()
+        if isinstance(prompt, str) and prompt.strip()
+        else "high quality detailed subject",
         negative.strip() if isinstance(negative, str) else "",
     )
 
@@ -54,7 +55,9 @@ def _img_to_png_bytes(image: Image.Image) -> bytes:
 
 
 class FakeSketchAdapter:
-    def render(self, *, scene_id: str, job_id: str, input_payload: dict[str, object]) -> AdapterResult:
+    def render(
+        self, *, scene_id: str, job_id: str, input_payload: dict[str, object]
+    ) -> AdapterResult:
         rendered = render_placeholder_png(job_type="SKETCH", scene_id=scene_id, job_id=job_id)
         return AdapterResult(
             png_bytes=rendered.png_bytes,
@@ -66,8 +69,12 @@ class FakeSketchAdapter:
 
 
 class FakeObjectRenderAdapter:
-    def render(self, *, scene_id: str, job_id: str, input_payload: dict[str, object]) -> AdapterResult:
-        rendered = render_placeholder_png(job_type="OBJECT_RENDER", scene_id=scene_id, job_id=job_id)
+    def render(
+        self, *, scene_id: str, job_id: str, input_payload: dict[str, object]
+    ) -> AdapterResult:
+        rendered = render_placeholder_png(
+            job_type="OBJECT_RENDER", scene_id=scene_id, job_id=job_id
+        )
         return AdapterResult(
             png_bytes=rendered.png_bytes,
             width=rendered.width,
@@ -79,6 +86,9 @@ class FakeObjectRenderAdapter:
 
 class SdWebUiClient:
     def __init__(self, base_url: str) -> None:
+        parsed = urlparse(base_url)
+        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+            raise ValueError("A1111_BASE_URL must be an absolute http(s) URL")
         self.base_url = base_url.rstrip("/")
 
     def txt2img(
@@ -111,7 +121,7 @@ class SdWebUiClient:
         )
 
         try:
-            with request.urlopen(req, timeout=120) as response:
+            with request.urlopen(req, timeout=120) as response:  # nosec B310
                 decoded = json.loads(response.read().decode("utf-8"))
         except error.HTTPError as exc:
             detail = exc.read().decode("utf-8")
@@ -135,10 +145,20 @@ class SdWebUiSketchAdapter:
     def __init__(self, client: SdWebUiClient) -> None:
         self.client = client
 
-    def render(self, *, scene_id: str, job_id: str, input_payload: dict[str, object]) -> AdapterResult:
+    def render(
+        self, *, scene_id: str, job_id: str, input_payload: dict[str, object]
+    ) -> AdapterResult:
         prompt, negative_prompt = _prompt_from_payload(input_payload)
-        width = int(input_payload.get("width", 512)) if isinstance(input_payload.get("width"), int) else 512
-        height = int(input_payload.get("height", 512)) if isinstance(input_payload.get("height"), int) else 512
+        width = (
+            int(input_payload.get("width", 512))
+            if isinstance(input_payload.get("width"), int)
+            else 512
+        )
+        height = (
+            int(input_payload.get("height", 512))
+            if isinstance(input_payload.get("height"), int)
+            else 512
+        )
 
         generated = self.client.txt2img(
             prompt=f"line art sketch, monochrome, {prompt}",
@@ -166,10 +186,20 @@ class SdWebUiObjectRenderAdapter:
     def __init__(self, client: SdWebUiClient) -> None:
         self.client = client
 
-    def render(self, *, scene_id: str, job_id: str, input_payload: dict[str, object]) -> AdapterResult:
+    def render(
+        self, *, scene_id: str, job_id: str, input_payload: dict[str, object]
+    ) -> AdapterResult:
         prompt, negative_prompt = _prompt_from_payload(input_payload)
-        width = int(input_payload.get("width", 512)) if isinstance(input_payload.get("width"), int) else 512
-        height = int(input_payload.get("height", 512)) if isinstance(input_payload.get("height"), int) else 512
+        width = (
+            int(input_payload.get("width", 512))
+            if isinstance(input_payload.get("width"), int)
+            else 512
+        )
+        height = (
+            int(input_payload.get("height", 512))
+            if isinstance(input_payload.get("height"), int)
+            else 512
+        )
 
         generated = self.client.txt2img(
             prompt=f"isolated subject, clean silhouette, {prompt}",

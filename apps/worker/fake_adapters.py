@@ -1,9 +1,7 @@
 from dataclasses import dataclass
 from io import BytesIO
 
-from PIL import Image
-from PIL import ImageDraw
-from PIL import ImageFont
+from PIL import Image, ImageDraw, ImageFont
 
 
 @dataclass(frozen=True)

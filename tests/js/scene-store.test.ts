@@ -24,7 +24,10 @@ import {
   setStylePresetCommand,
   toggleLayerLockCommand,
 } from "../../apps/web/src/state/commands";
-import { createInitialSceneStoreState, sceneStoreReducer } from "../../apps/web/src/state/sceneState";
+import {
+  createInitialSceneStoreState,
+  sceneStoreReducer,
+} from "../../apps/web/src/state/sceneState";
 
 describe("scene store reducer", () => {
   it("creates initial state with seeded layers", () => {
@@ -308,7 +311,9 @@ describe("scene store reducer", () => {
       command: duplicateObjectCommand(hero.id),
     });
     expect(state.sceneSpec.objects).toHaveLength(2);
-    expect(state.sceneSpec.objects.some((object) => object.name.startsWith("Lead Copy"))).toBe(true);
+    expect(state.sceneSpec.objects.some((object) => object.name.startsWith("Lead Copy"))).toBe(
+      true,
+    );
 
     state = sceneStoreReducer(state, {
       type: "EXECUTE_COMMAND",
@@ -347,7 +352,13 @@ describe("scene store reducer", () => {
 
     state = sceneStoreReducer(state, {
       type: "EXECUTE_COMMAND",
-      command: updateZoneCommand(zone.id, { name: "Primary Zone", x: 60, y: 65, width: 180, height: 115 }),
+      command: updateZoneCommand(zone.id, {
+        name: "Primary Zone",
+        x: 60,
+        y: 65,
+        width: 180,
+        height: 115,
+      }),
     });
     const updatedZone = state.sceneSpec.zones.find((candidate) => candidate.id === zone.id);
     expect(updatedZone?.name).toBe("Primary Zone");

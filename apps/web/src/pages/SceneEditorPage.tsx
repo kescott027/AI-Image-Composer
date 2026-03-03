@@ -2,12 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import type { SceneSpec } from "@ai-image-composer/shared";
 
-import {
-  buildGenerationInput,
-  createJob,
-  type JobRead,
-  type SupportedJobType,
-} from "../api/jobs";
+import { buildGenerationInput, createJob, type JobRead, type SupportedJobType } from "../api/jobs";
 import {
   detectRelationConflicts,
   createSceneVersion,
@@ -20,7 +15,10 @@ import {
 } from "../api/scenes";
 import { JobStatusPanel } from "../components/JobStatusPanel";
 import { LayersPanel } from "../components/LayersPanel";
-import { ObjectPromptEditor, type ObjectPromptEditorValues } from "../components/ObjectPromptEditor";
+import {
+  ObjectPromptEditor,
+  type ObjectPromptEditorValues,
+} from "../components/ObjectPromptEditor";
 import {
   type OverarchingPromptEditorValues,
   OverarchingPromptEditor,
@@ -70,9 +68,7 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
   );
   const [zoneDrawingMode, setZoneDrawingMode] = useState<ZoneDrawingMode>("NONE");
   const [pendingZoneName, setPendingZoneName] = useState("Zone 1");
-  const [pendingLassoPoints, setPendingLassoPoints] = useState<Array<{ x: number; y: number }>>(
-    [],
-  );
+  const [pendingLassoPoints, setPendingLassoPoints] = useState<Array<{ x: number; y: number }>>([]);
   const [isHydratedFromApi, setIsHydratedFromApi] = useState(false);
   const [isLoadingScene, setIsLoadingScene] = useState(true);
   const [isPersistingScene, setIsPersistingScene] = useState(false);
@@ -82,16 +78,8 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
   const autosaveSkipRef = useRef(true);
   const latestSceneSpecRef = useRef<SceneSpec | null>(null);
 
-  const {
-    sceneSpec,
-    commandLog,
-    canUndo,
-    canRedo,
-    executeCommand,
-    undo,
-    redo,
-    loadSceneSpec,
-  } = useSceneStore();
+  const { sceneSpec, commandLog, canUndo, canRedo, executeCommand, undo, redo, loadSceneSpec } =
+    useSceneStore();
 
   const objectLayer = useMemo(
     () => sceneSpec.layers.find((layer) => layer.type === "OBJECT"),
@@ -348,7 +336,15 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
   };
 
   const createRectZone = (zone: { x: number; y: number; width: number; height: number }) => {
-    executeCommand(addZoneRectCommand(pendingZoneName || `Zone ${sceneSpec.zones.length + 1}`, zone.x, zone.y, zone.width, zone.height));
+    executeCommand(
+      addZoneRectCommand(
+        pendingZoneName || `Zone ${sceneSpec.zones.length + 1}`,
+        zone.x,
+        zone.y,
+        zone.width,
+        zone.height,
+      ),
+    );
     setZoneDrawingMode("NONE");
   };
 
@@ -360,7 +356,12 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
     if (pendingLassoPoints.length < 3) {
       return;
     }
-    executeCommand(addZoneLassoCommand(pendingZoneName || `Zone ${sceneSpec.zones.length + 1}`, pendingLassoPoints));
+    executeCommand(
+      addZoneLassoCommand(
+        pendingZoneName || `Zone ${sceneSpec.zones.length + 1}`,
+        pendingLassoPoints,
+      ),
+    );
     setPendingLassoPoints([]);
     setZoneDrawingMode("NONE");
   };
@@ -557,10 +558,20 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
           <button type="button" className="button-link" onClick={redo} disabled={!canRedo}>
             Redo
           </button>
-          <button type="button" className="button-link" onClick={() => void saveScene()} disabled={isPersistingScene}>
+          <button
+            type="button"
+            className="button-link"
+            onClick={() => void saveScene()}
+            disabled={isPersistingScene}
+          >
             Save Scene
           </button>
-          <button type="button" className="button-link" onClick={() => void saveVersion()} disabled={isSavingVersion || isLoadingScene}>
+          <button
+            type="button"
+            className="button-link"
+            onClick={() => void saveVersion()}
+            disabled={isSavingVersion || isLoadingScene}
+          >
             Save Version
           </button>
           <Link to={ROUTES.projects} className="button-link">
@@ -590,50 +601,97 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
           <p>Prompt, constraints, generation, and version history</p>
           <p className="generation-status">{persistMessage}</p>
           <OverarchingPromptEditor scene={sceneSpec.scene} onApply={applyScenePrompt} />
-          <button
-            type="button"
-            className="button-link"
-            onClick={addObject}
-            disabled={!objectLayer}
-          >
+          <button type="button" className="button-link" onClick={addObject} disabled={!objectLayer}>
             Add Object
           </button>
           <div className="object-tools">
             <h3>Object Transform</h3>
-            <p>{selectedObject ? `Selected: ${selectedObject.name}` : "Select an object in canvas."}</p>
+            <p>
+              {selectedObject ? `Selected: ${selectedObject.name}` : "Select an object in canvas."}
+            </p>
             <div className="tool-row">
-              <button type="button" className="mini-button" onClick={() => applyMove(-12, 0)} disabled={!selectedObject}>
+              <button
+                type="button"
+                className="mini-button"
+                onClick={() => applyMove(-12, 0)}
+                disabled={!selectedObject}
+              >
                 Left
               </button>
-              <button type="button" className="mini-button" onClick={() => applyMove(12, 0)} disabled={!selectedObject}>
+              <button
+                type="button"
+                className="mini-button"
+                onClick={() => applyMove(12, 0)}
+                disabled={!selectedObject}
+              >
                 Right
               </button>
-              <button type="button" className="mini-button" onClick={() => applyMove(0, -12)} disabled={!selectedObject}>
+              <button
+                type="button"
+                className="mini-button"
+                onClick={() => applyMove(0, -12)}
+                disabled={!selectedObject}
+              >
                 Up
               </button>
-              <button type="button" className="mini-button" onClick={() => applyMove(0, 12)} disabled={!selectedObject}>
+              <button
+                type="button"
+                className="mini-button"
+                onClick={() => applyMove(0, 12)}
+                disabled={!selectedObject}
+              >
                 Down
               </button>
             </div>
             <div className="tool-row">
-              <button type="button" className="mini-button" onClick={() => applyRotate(-15)} disabled={!selectedObject}>
+              <button
+                type="button"
+                className="mini-button"
+                onClick={() => applyRotate(-15)}
+                disabled={!selectedObject}
+              >
                 Rotate -15
               </button>
-              <button type="button" className="mini-button" onClick={() => applyRotate(15)} disabled={!selectedObject}>
+              <button
+                type="button"
+                className="mini-button"
+                onClick={() => applyRotate(15)}
+                disabled={!selectedObject}
+              >
                 Rotate +15
               </button>
-              <button type="button" className="mini-button" onClick={() => applyScale(0.9)} disabled={!selectedObject}>
+              <button
+                type="button"
+                className="mini-button"
+                onClick={() => applyScale(0.9)}
+                disabled={!selectedObject}
+              >
                 Scale -10%
               </button>
-              <button type="button" className="mini-button" onClick={() => applyScale(1.1)} disabled={!selectedObject}>
+              <button
+                type="button"
+                className="mini-button"
+                onClick={() => applyScale(1.1)}
+                disabled={!selectedObject}
+              >
                 Scale +10%
               </button>
             </div>
             <div className="tool-row">
-              <button type="button" className="mini-button" onClick={() => applyZOrder("DOWN")} disabled={!selectedObject}>
+              <button
+                type="button"
+                className="mini-button"
+                onClick={() => applyZOrder("DOWN")}
+                disabled={!selectedObject}
+              >
                 Send Back
               </button>
-              <button type="button" className="mini-button" onClick={() => applyZOrder("UP")} disabled={!selectedObject}>
+              <button
+                type="button"
+                className="mini-button"
+                onClick={() => applyZOrder("UP")}
+                disabled={!selectedObject}
+              >
                 Bring Front
               </button>
             </div>
@@ -645,18 +703,34 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
                 placeholder="Selected object name"
                 disabled={!selectedObject}
               />
-              <button type="button" className="mini-button" onClick={applyObjectRename} disabled={!selectedObject || !objectNameDraft.trim()}>
+              <button
+                type="button"
+                className="mini-button"
+                onClick={applyObjectRename}
+                disabled={!selectedObject || !objectNameDraft.trim()}
+              >
                 Rename
               </button>
-              <button type="button" className="mini-button" onClick={duplicateSelectedObject} disabled={!selectedObject}>
+              <button
+                type="button"
+                className="mini-button"
+                onClick={duplicateSelectedObject}
+                disabled={!selectedObject}
+              >
                 Duplicate
               </button>
-              <button type="button" className="mini-button" onClick={removeSelectedObject} disabled={!selectedObject}>
+              <button
+                type="button"
+                className="mini-button"
+                onClick={removeSelectedObject}
+                disabled={!selectedObject}
+              >
                 Delete
               </button>
             </div>
             <p className="shortcut-hint">
-              Shortcuts: Cmd/Ctrl+Z Undo, Cmd/Ctrl+Shift+Z Redo, Cmd/Ctrl+D Duplicate, Del Remove, Arrows Move, Shift+Arrows Fast Move.
+              Shortcuts: Cmd/Ctrl+Z Undo, Cmd/Ctrl+Shift+Z Redo, Cmd/Ctrl+D Duplicate, Del Remove,
+              Arrows Move, Shift+Arrows Fast Move.
             </p>
           </div>
           <ObjectPromptEditor selectedObject={selectedObject} onApply={applyObjectPrompt} />
@@ -698,8 +772,8 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
           <section className="generation-tools">
             <h3>Generation Jobs</h3>
             <p>
-              Queue backend jobs. SKETCH and OBJECT_RENDER use selected object. ZONE_RENDER
-              uses saved zones. REFINE applies a low-strength global pass.
+              Queue backend jobs. SKETCH and OBJECT_RENDER use selected object. ZONE_RENDER uses
+              saved zones. REFINE applies a low-strength global pass.
             </p>
             <div className="tool-row">
               <button
@@ -768,7 +842,10 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
                 {sceneVersions.map((version) => (
                   <li key={version.id} className="version-item">
                     <span>
-                      v{version.version_number} {version.created_at ? `(${new Date(version.created_at).toLocaleString()})` : ""}
+                      v{version.version_number}{" "}
+                      {version.created_at
+                        ? `(${new Date(version.created_at).toLocaleString()})`
+                        : ""}
                     </span>
                     <button
                       type="button"
@@ -784,9 +861,12 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
           </section>
           <JobStatusPanel sceneId={sceneSpec.scene.id} onJobsUpdate={setSceneJobs} />
           <ul className="history-list">
-            {commandLog.slice(-6).reverse().map((entry, index) => (
-              <li key={`${entry}-${index}`}>{entry}</li>
-            ))}
+            {commandLog
+              .slice(-6)
+              .reverse()
+              .map((entry, index) => (
+                <li key={`${entry}-${index}`}>{entry}</li>
+              ))}
           </ul>
         </aside>
       </section>

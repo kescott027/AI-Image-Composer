@@ -1,38 +1,29 @@
 import hashlib
 import json
-from datetime import UTC
-from datetime import datetime
+from datetime import UTC, datetime
 from uuid import uuid4
-
-from fastapi import Body
-from fastapi import Depends
-from fastapi import FastAPI
-from fastapi import File
-from fastapi import Form
-from fastapi import HTTPException
-from fastapi import Query
-from fastapi import UploadFile
-from fastapi.responses import FileResponse
-from sqlalchemy import desc
-from sqlalchemy import select
-from sqlalchemy.orm import Session
 
 from apps.api.db import models as db_models
 from apps.api.dependencies import get_db_session
 from apps.api.models.artifact_store import ArtifactRecord
 from apps.api.models.constraints import RelationConflictRead
-from apps.api.models.crud import ProjectCreate
-from apps.api.models.crud import ProjectRead
-from apps.api.models.crud import SceneCreate
-from apps.api.models.crud import SceneRead
-from apps.api.models.crud import SceneVersionCreateResponse
-from apps.api.models.crud import SceneVersionRead
-from apps.api.models.jobs import JobCreate
-from apps.api.models.jobs import JobRead
+from apps.api.models.crud import (
+    ProjectCreate,
+    ProjectRead,
+    SceneCreate,
+    SceneRead,
+    SceneVersionCreateResponse,
+    SceneVersionRead,
+)
+from apps.api.models.jobs import JobCreate, JobRead
 from apps.api.models.scenespec import SceneSpec
 from apps.api.services.artifact_store import LocalArtifactStore
 from apps.api.services.prompt_compiler import compile_prompt_for_job
 from apps.api.services.relation_conflicts import detect_relation_conflicts
+from fastapi import Body, Depends, FastAPI, File, Form, HTTPException, Query, UploadFile
+from fastapi.responses import FileResponse
+from sqlalchemy import desc, select
+from sqlalchemy.orm import Session
 
 app = FastAPI(title="AI Image Composer API", version="0.1.0")
 artifact_store = LocalArtifactStore.from_env()
@@ -207,7 +198,7 @@ def _initial_scene_spec(scene: db_models.Scene) -> dict:
 
 def _job_input_hash(scene_id: str, job_type: str, payload: dict[str, object]) -> str:
     normalized_payload = json.dumps(payload, sort_keys=True, separators=(",", ":"))
-    digest = hashlib.sha256(f"{scene_id}:{job_type}:{normalized_payload}".encode("utf-8")).hexdigest()
+    digest = hashlib.sha256(f"{scene_id}:{job_type}:{normalized_payload}".encode()).hexdigest()
     return f"sha256:{digest}"
 
 
@@ -352,7 +343,9 @@ def create_scene_version(
 
 
 @app.get("/scenes/{scene_id}/versions", response_model=list[SceneVersionRead], tags=["scenes"])
-def list_scene_versions(scene_id: str, db: Session = Depends(get_db_session)) -> list[SceneVersionRead]:
+def list_scene_versions(
+    scene_id: str, db: Session = Depends(get_db_session)
+) -> list[SceneVersionRead]:
     _get_scene_or_404(db, scene_id)
 
     stmt = (

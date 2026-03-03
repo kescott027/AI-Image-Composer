@@ -1,18 +1,19 @@
 import json
 from pathlib import Path
 
-from PIL import Image
 import pytest
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-
 from apps.api.db import models as db_models
 from apps.api.db.base import Base
 from apps.api.services.artifact_store import LocalArtifactStore
 from apps.worker import worker
+from PIL import Image
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 
 
-def _png_bytes(width: int = 64, height: int = 64, color: tuple[int, int, int, int] = (80, 130, 220, 255)) -> bytes:
+def _png_bytes(
+    width: int = 64, height: int = 64, color: tuple[int, int, int, int] = (80, 130, 220, 255)
+) -> bytes:
     image = Image.new("RGBA", (width, height), color)
     from io import BytesIO
 
@@ -155,7 +156,9 @@ def test_process_one_job_when_queue_is_empty(monkeypatch, tmp_path: Path) -> Non
     engine.dispose()
 
 
-def test_process_one_job_persists_mask_artifact_when_adapter_returns_mask(monkeypatch, tmp_path: Path) -> None:
+def test_process_one_job_persists_mask_artifact_when_adapter_returns_mask(
+    monkeypatch, tmp_path: Path
+) -> None:
     engine, session_local = _db_session_factory()
 
     with session_local() as session:
@@ -259,7 +262,15 @@ def test_process_one_job_zone_render_generates_zone_and_composite_artifacts(
 
         scene_spec = {
             "scene": {"id": scene_id, "title": "Zone Scene", "overarching_prompt": ""},
-            "layers": [{"id": "layer_obj", "type": "OBJECT", "name": "Objects", "order": 1, "visible": True}],
+            "layers": [
+                {
+                    "id": "layer_obj",
+                    "type": "OBJECT",
+                    "name": "Objects",
+                    "order": 1,
+                    "visible": True,
+                }
+            ],
             "objects": [
                 {
                     "id": "obj_hero",

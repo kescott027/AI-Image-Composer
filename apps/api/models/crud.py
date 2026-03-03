@@ -1,7 +1,5 @@
-from pydantic import BaseModel
-from pydantic import Field
-
 from apps.api.models.scenespec import SceneSpec
+from pydantic import BaseModel, Field
 
 
 class ProjectCreate(BaseModel):

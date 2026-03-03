@@ -10,8 +10,8 @@ export default [
       "**/.git/**",
       "coverage/**",
       "dist/**",
-      "**/dist/**"
-    ]
+      "**/dist/**",
+    ],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,
@@ -19,16 +19,16 @@ export default [
     files: ["**/*.{js,mjs,cjs,ts,tsx}"],
     languageOptions: {
       globals: {
-        ...globals.node
-      }
-    }
+        ...globals.node,
+      },
+    },
   },
   {
     files: ["apps/web/**/*.{js,mjs,cjs,ts,tsx}"],
     languageOptions: {
       globals: {
-        ...globals.browser
-      }
-    }
-  }
+        ...globals.browser,
+      },
+    },
+  },
 ];

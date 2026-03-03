@@ -37,7 +37,10 @@ export function createInitialSceneStoreState(sceneId: string): SceneStoreState {
   };
 }
 
-export function sceneStoreReducer(state: SceneStoreState, action: SceneStoreAction): SceneStoreState {
+export function sceneStoreReducer(
+  state: SceneStoreState,
+  action: SceneStoreAction,
+): SceneStoreState {
   switch (action.type) {
     case "EXECUTE_COMMAND": {
       const nextSceneSpec = action.command.apply(state.sceneSpec);

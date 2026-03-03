@@ -65,7 +65,12 @@ export function ProjectListPage() {
           <button type="button" className="button-link" onClick={() => void createNewProject()}>
             Create Project
           </button>
-          <button type="button" className="mini-button" onClick={() => void loadProjects()} disabled={isLoading}>
+          <button
+            type="button"
+            className="mini-button"
+            onClick={() => void loadProjects()}
+            disabled={isLoading}
+          >
             Refresh
           </button>
         </div>
@@ -79,7 +84,8 @@ export function ProjectListPage() {
               <h2>{project.name}</h2>
               <p>ID: {project.id}</p>
               <span>
-                Created: {project.created_at ? new Date(project.created_at).toLocaleDateString() : "n/a"}
+                Created:{" "}
+                {project.created_at ? new Date(project.created_at).toLocaleDateString() : "n/a"}
               </span>
             </article>
           </Link>

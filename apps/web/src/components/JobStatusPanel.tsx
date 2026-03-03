@@ -102,11 +102,17 @@ export function JobStatusPanel({
   }, [refreshJobs, refreshIntervalMs]);
 
   const activeJobs = useMemo(
-    () => jobs.filter((job) => job.status === "QUEUED" || job.status === "RUNNING").sort(sortRecentFirst),
+    () =>
+      jobs
+        .filter((job) => job.status === "QUEUED" || job.status === "RUNNING")
+        .sort(sortRecentFirst),
     [jobs],
   );
   const completedJobs = useMemo(
-    () => jobs.filter((job) => job.status === "SUCCEEDED" || job.status === "CANCELED").sort(sortRecentFirst),
+    () =>
+      jobs
+        .filter((job) => job.status === "SUCCEEDED" || job.status === "CANCELED")
+        .sort(sortRecentFirst),
     [jobs],
   );
   const failedJobs = useMemo(
@@ -118,12 +124,18 @@ export function JobStatusPanel({
     <section className="job-status-panel">
       <div className="job-status-header">
         <h3>Job Queue</h3>
-        <button type="button" className="mini-button" onClick={() => void refreshJobs()} disabled={isLoading}>
+        <button
+          type="button"
+          className="mini-button"
+          onClick={() => void refreshJobs()}
+          disabled={isLoading}
+        >
           Refresh
         </button>
       </div>
       <p>
-        Active: {activeJobs.length} | Completed: {completedJobs.length} | Failed: {failedJobs.length}
+        Active: {activeJobs.length} | Completed: {completedJobs.length} | Failed:{" "}
+        {failedJobs.length}
       </p>
       <p className="job-status-meta">
         {isLoading ? "Loading jobs..." : `Last updated: ${formatDateTime(lastUpdatedAt)}`}

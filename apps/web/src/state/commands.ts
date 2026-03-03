@@ -116,7 +116,9 @@ function refreshAutoZoneMembership(sceneSpec: SceneSpec): void {
       const validObjectIds = new Set(sceneSpec.objects.map((object) => object.id));
       return {
         ...zone,
-        included_object_ids: zone.included_object_ids.filter((objectId) => validObjectIds.has(objectId)),
+        included_object_ids: zone.included_object_ids.filter((objectId) =>
+          validObjectIds.has(objectId),
+        ),
       };
     }
     return {
@@ -236,7 +238,10 @@ export function moveLayerCommand(layerId: string, direction: "UP" | "DOWN"): Sce
         return next;
       }
 
-      [ordered[currentIndex], ordered[neighborIndex]] = [ordered[neighborIndex], ordered[currentIndex]];
+      [ordered[currentIndex], ordered[neighborIndex]] = [
+        ordered[neighborIndex],
+        ordered[currentIndex],
+      ];
       const orderById = new Map(ordered.map((layer, index) => [layer.id, index]));
 
       next.layers = next.layers.map((layer) => ({
@@ -484,7 +489,8 @@ export function addZoneRectCommand(
           type: "rect",
           ...normalizedBounds,
         },
-        included_object_ids: options?.includedObjectIds ?? inferZoneObjectIds(next, normalizedBounds),
+        included_object_ids:
+          options?.includedObjectIds ?? inferZoneObjectIds(next, normalizedBounds),
         guidance_prompt: options?.guidancePrompt ?? "",
         negative_prompt: options?.negativePrompt ?? "",
       });
@@ -533,8 +539,7 @@ export function addZoneLassoCommand(
           points,
         },
         included_object_ids:
-          options?.includedObjectIds ??
-          inferZoneObjectIds(next, normalizedBounds),
+          options?.includedObjectIds ?? inferZoneObjectIds(next, normalizedBounds),
         guidance_prompt: options?.guidancePrompt ?? "",
         negative_prompt: options?.negativePrompt ?? "",
       });
@@ -723,8 +728,14 @@ export function scaleObjectCommand(objectId: string, multiplier: number): SceneC
         if (object.id !== objectId || !object.transform) {
           return object;
         }
-        const nextScaleX = Math.min(3, Math.max(0.2, Number((object.transform.scale_x * multiplier).toFixed(2))));
-        const nextScaleY = Math.min(3, Math.max(0.2, Number((object.transform.scale_y * multiplier).toFixed(2))));
+        const nextScaleX = Math.min(
+          3,
+          Math.max(0.2, Number((object.transform.scale_x * multiplier).toFixed(2))),
+        );
+        const nextScaleY = Math.min(
+          3,
+          Math.max(0.2, Number((object.transform.scale_y * multiplier).toFixed(2))),
+        );
         return {
           ...object,
           transform: {

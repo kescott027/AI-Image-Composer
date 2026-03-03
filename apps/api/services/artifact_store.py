@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from datetime import UTC
-from datetime import datetime
 import json
 import os
+from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 from threading import Lock
 from uuid import uuid4
@@ -25,7 +24,7 @@ class LocalArtifactStore:
         self._lock = Lock()
 
     @classmethod
-    def from_env(cls) -> "LocalArtifactStore":
+    def from_env(cls) -> LocalArtifactStore:
         root = Path(os.getenv("ARTIFACTS_ROOT", ".artifacts"))
         return cls(root=root)
 

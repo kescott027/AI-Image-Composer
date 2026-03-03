@@ -3,11 +3,13 @@
 This backlog is reordered into release epics with security and architecture hardening prioritized.
 
 Status legend:
+
 - `[DONE]`
 - `[IN PROGRESS]`
 - `[NOT STARTED]`
 
 ## Epic 1: MVP (Release 0)
+
 Goal: usable scene composer with layered editing, generation flow, persistence, and basic constraints.
 
 1. **Story 1** `[IN PROGRESS]` Define Product Framing and Milestones
@@ -44,9 +46,11 @@ Goal: usable scene composer with layered editing, generation flow, persistence, 
 ---
 
 ## Epic 2: Production Ready (Release 1)
+
 Goal: security-first hardening, architecture hardening, reproducibility, observability, and operational reliability.
 
 ### Security and Architecture Hardening (Highest Priority)
+
 1. **Story 71** `[NOT STARTED]` Multi-User Authentication System
 2. **Story 72** `[NOT STARTED]` Role-Based Access Control
 3. **Story 87** `[NOT STARTED]` Rate Limiting & Abuse Protection
@@ -59,6 +63,7 @@ Goal: security-first hardening, architecture hardening, reproducibility, observa
 10. **Story 88** `[NOT STARTED]` Project Archiving System
 
 ### Core Architecture Stability
+
 11. **Story 101** `[NOT STARTED]` Enforce Single-Source SceneSpec Contract (generated TS/Pydantic/OpenAPI)
 12. **Story 57** `[NOT STARTED]` Implement SceneSpec Migration System
 13. **Story 102** `[NOT STARTED]` Split Draft Save vs Version Checkpoint Model
@@ -68,6 +73,7 @@ Goal: security-first hardening, architecture hardening, reproducibility, observa
 17. **Story 59** `[NOT STARTED]` Implement Job Replay Mechanism
 
 ### Queue, Worker, and Runtime Reliability
+
 18. **Story 41** `[NOT STARTED]` Implement Redis-Based Job Queue
 19. **Story 103** `[NOT STARTED]` Atomic Job Claiming + Retry + Dead-Letter Policy
 20. **Story 62** `[NOT STARTED]` Distributed Worker Coordination
@@ -79,6 +85,7 @@ Goal: security-first hardening, architecture hardening, reproducibility, observa
 26. **Story 104** `[NOT STARTED]` CI Integration Harness (API + Worker + DB + IUR Smoke)
 
 ### Production UX and Integration Readiness
+
 27. **Story 64** `[NOT STARTED]` Persistent WebSocket Gateway Service
 28. **Story 43** `[NOT STARTED]` Streaming Progress Updates via WebSockets
 29. **Story 79** `[NOT STARTED]` Webhook System
@@ -86,6 +93,7 @@ Goal: security-first hardening, architecture hardening, reproducibility, observa
 ---
 
 ## Epic 3: Stable Platform (Release 2)
+
 Goal: extensible platform features, collaboration baseline, and robust content workflows.
 
 1. **Story 33** `[NOT STARTED]` Implement Artifact Version Browser
@@ -123,6 +131,7 @@ Goal: extensible platform features, collaboration baseline, and robust content w
 ---
 
 ## Epic 4: Ongoing Growth and Stability (Release n)
+
 Goal: advanced intelligence, commercialization, and long-horizon platform resilience.
 
 1. **Story 81** `[NOT STARTED]` Embedding-Based Relation Suggestion
@@ -145,6 +154,7 @@ Goal: advanced intelligence, commercialization, and long-horizon platform resili
 ---
 
 ## Release Gate Notes
+
 - **Release 0** is functionally complete except Story 1 closure and final milestone document sign-off.
 - **Release 1** must pass security hardening and architecture hardening gates before production traffic.
 - **Release 2** focuses on stable extensibility and collaboration readiness.

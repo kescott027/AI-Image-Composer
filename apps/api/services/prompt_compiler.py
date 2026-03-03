@@ -78,7 +78,9 @@ def compile_prompt_for_job(
     object_lookup = _object_lookup(scene_spec)
     target_object = object_lookup.get(target_object_id) if target_object_id else None
     object_prompt = _text(target_object.get("prompt")) if isinstance(target_object, dict) else ""
-    object_negative = _text(target_object.get("negative_prompt")) if isinstance(target_object, dict) else ""
+    object_negative = (
+        _text(target_object.get("negative_prompt")) if isinstance(target_object, dict) else ""
+    )
     object_name = _text(target_object.get("name")) if isinstance(target_object, dict) else ""
 
     hints = _relation_hints(scene_spec, target_object_id, object_lookup)

@@ -1,9 +1,8 @@
 from pathlib import Path
 
-from fastapi.testclient import TestClient
-
 from apps.api import main
 from apps.api.services.artifact_store import LocalArtifactStore
+from fastapi.testclient import TestClient
 
 
 def _client_with_temp_store(tmp_path: Path, monkeypatch) -> TestClient:

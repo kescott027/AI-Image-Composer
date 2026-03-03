@@ -1,22 +1,16 @@
 import argparse
-from datetime import UTC
-from datetime import datetime
-from io import BytesIO
 import time
-
-from PIL import Image
-from PIL import ImageFilter
-from sqlalchemy import asc
-from sqlalchemy import desc
-from sqlalchemy import select
-from sqlalchemy.orm import Session
+from datetime import UTC, datetime
+from io import BytesIO
 
 from apps.api.db import models as db_models
 from apps.api.db.session import get_session_local
 from apps.api.services.artifact_store import LocalArtifactStore
 from apps.worker.fake_adapters import render_placeholder_png
 from apps.worker.model_adapters import resolve_adapter
-
+from PIL import Image, ImageFilter
+from sqlalchemy import asc, desc, select
+from sqlalchemy.orm import Session
 
 _artifact_store: LocalArtifactStore | None = None
 
@@ -195,7 +189,9 @@ def _ordered_visible_objects(scene_spec: dict[str, object]) -> list[dict[str, ob
 def _render_final_composite(db: Session, job: db_models.Job) -> tuple[bytes, int, int, int]:
     scene_spec = _extract_scene_spec(job)
     if scene_spec is None:
-        fallback = render_placeholder_png(job_type=job.job_type, scene_id=job.scene_id, job_id=job.id)
+        fallback = render_placeholder_png(
+            job_type=job.job_type, scene_id=job.scene_id, job_id=job.id
+        )
         return fallback.png_bytes, fallback.width, fallback.height, 0
 
     width, height = _resolve_canvas_size(scene_spec)
@@ -209,7 +205,9 @@ def _render_final_composite(db: Session, job: db_models.Job) -> tuple[bytes, int
         if not isinstance(object_id, str):
             continue
 
-        artifact_id = latest_render_by_object.get(object_id) or latest_sketch_by_object.get(object_id)
+        artifact_id = latest_render_by_object.get(object_id) or latest_sketch_by_object.get(
+            object_id
+        )
         if artifact_id is None:
             continue
 
@@ -225,8 +223,24 @@ def _render_final_composite(db: Session, job: db_models.Job) -> tuple[bytes, int
             _append_job_log(job, f"Failed to decode artifact {artifact_id}: {exc}")
             continue
 
-        width_px = max(1, int(round(_to_float(object_payload.get("width"), 120) * _to_float(object_payload.get("scale_x"), 1))))
-        height_px = max(1, int(round(_to_float(object_payload.get("height"), 84) * _to_float(object_payload.get("scale_y"), 1))))
+        width_px = max(
+            1,
+            int(
+                round(
+                    _to_float(object_payload.get("width"), 120)
+                    * _to_float(object_payload.get("scale_x"), 1)
+                )
+            ),
+        )
+        height_px = max(
+            1,
+            int(
+                round(
+                    _to_float(object_payload.get("height"), 84)
+                    * _to_float(object_payload.get("scale_y"), 1)
+                )
+            ),
+        )
 
         resized_image = rgba_image.resize((width_px, height_px), Image.Resampling.BICUBIC)
         rotation_deg = _to_float(object_payload.get("rotation_deg"), 0)
@@ -255,7 +269,9 @@ def _input_payload(job: db_models.Job) -> dict[str, object]:
     return {}
 
 
-def _zone_bounds(zone_payload: dict[str, object], canvas_width: int, canvas_height: int) -> tuple[int, int, int, int]:
+def _zone_bounds(
+    zone_payload: dict[str, object], canvas_width: int, canvas_height: int
+) -> tuple[int, int, int, int]:
     shape = zone_payload.get("shape")
     if not isinstance(shape, dict):
         return (0, 0, 1, 1)
@@ -356,7 +372,9 @@ def _render_zone_composite(
 ) -> tuple[bytes, int, int, dict[str, object], list[dict[str, object]]]:
     scene_spec = _extract_scene_spec(job)
     if scene_spec is None:
-        fallback = render_placeholder_png(job_type=job.job_type, scene_id=job.scene_id, job_id=job.id)
+        fallback = render_placeholder_png(
+            job_type=job.job_type, scene_id=job.scene_id, job_id=job.id
+        )
         return (
             fallback.png_bytes,
             fallback.width,
@@ -407,7 +425,9 @@ def _render_zone_composite(
         else:
             zone_object_ids = []
         if selection_mode != "MANUAL" or not zone_object_ids:
-            zone_object_ids = _infer_zone_object_ids((zone_x, zone_y, zone_width, zone_height), ordered_objects)
+            zone_object_ids = _infer_zone_object_ids(
+                (zone_x, zone_y, zone_width, zone_height), ordered_objects
+            )
         zone_object_set = set(zone_object_ids)
         relation_ids = _zone_relation_ids(scene_spec, zone_object_set)
 
@@ -417,29 +437,45 @@ def _render_zone_composite(
             if not isinstance(object_id, str) or object_id not in zone_object_set:
                 continue
 
-            artifact_id = latest_render_by_object.get(object_id) or latest_sketch_by_object.get(object_id)
+            artifact_id = latest_render_by_object.get(object_id) or latest_sketch_by_object.get(
+                object_id
+            )
             if artifact_id is None:
                 continue
 
             stored_artifact = artifact_store.get(artifact_id)
             if stored_artifact is None:
-                _append_job_log(job, f"Zone {zone_id}: missing artifact {artifact_id} for object {object_id}")
+                _append_job_log(
+                    job, f"Zone {zone_id}: missing artifact {artifact_id} for object {object_id}"
+                )
                 continue
 
             try:
                 with Image.open(stored_artifact.file_path) as source_image:
                     rgba_image = source_image.convert("RGBA")
             except Exception as exc:
-                _append_job_log(job, f"Zone {zone_id}: failed to decode artifact {artifact_id}: {exc}")
+                _append_job_log(
+                    job, f"Zone {zone_id}: failed to decode artifact {artifact_id}: {exc}"
+                )
                 continue
 
             width_px = max(
                 1,
-                int(round(_to_float(object_payload.get("width"), 120) * _to_float(object_payload.get("scale_x"), 1))),
+                int(
+                    round(
+                        _to_float(object_payload.get("width"), 120)
+                        * _to_float(object_payload.get("scale_x"), 1)
+                    )
+                ),
             )
             height_px = max(
                 1,
-                int(round(_to_float(object_payload.get("height"), 84) * _to_float(object_payload.get("scale_y"), 1))),
+                int(
+                    round(
+                        _to_float(object_payload.get("height"), 84)
+                        * _to_float(object_payload.get("scale_y"), 1)
+                    )
+                ),
             )
             resized_image = rgba_image.resize((width_px, height_px), Image.Resampling.BICUBIC)
             rotation_deg = _to_float(object_payload.get("rotation_deg"), 0)
@@ -460,7 +496,10 @@ def _render_zone_composite(
         composed_zone_count += 1
         _append_job_log(
             job,
-            f"Zone {zone_name} ({zone_id}) rendered with {rendered_object_count} object(s) and {len(relation_ids)} relation(s)",
+            (
+                f"Zone {zone_name} ({zone_id}) rendered with {rendered_object_count} "
+                f"object(s) and {len(relation_ids)} relation(s)"
+            ),
         )
 
         zone_artifacts.append(
@@ -561,7 +600,9 @@ def _render_refinement_pass(
                 source_image = fallback.convert("RGBA")
             source_artifact_id = "generated_fallback_composite"
         else:
-            fallback = render_placeholder_png(job_type="FINAL_COMPOSITE", scene_id=job.scene_id, job_id=job.id)
+            fallback = render_placeholder_png(
+                job_type="FINAL_COMPOSITE", scene_id=job.scene_id, job_id=job.id
+            )
             with Image.open(BytesIO(fallback.png_bytes)) as fallback_image:
                 source_image = fallback_image.convert("RGBA")
             source_artifact_id = "generated_fallback_placeholder"
@@ -688,7 +729,9 @@ def process_one_job() -> bool:
                     subtype=str(zone_artifact["subtype"]),
                     width=_to_int(zone_artifact["width"], 1),
                     height=_to_int(zone_artifact["height"], 1),
-                    metadata_json=zone_artifact["metadata"] if isinstance(zone_artifact["metadata"], dict) else {},
+                    metadata_json=zone_artifact["metadata"]
+                    if isinstance(zone_artifact["metadata"], dict)
+                    else {},
                 )
                 extra_artifact_ids.append(zone_artifact_id)
             _append_job_log(job, f"Generated {len(extra_artifact_ids)} zone artifact(s)")
@@ -696,7 +739,9 @@ def process_one_job() -> bool:
         elif job.job_type == "REFINE":
             composite_png, width, height, metadata_json = _render_refinement_pass(db=db, job=job)
             subtype = "REFINED"
-            _append_job_log(job, f"Refinement pass applied at strength {metadata_json.get('refine_strength')}")
+            _append_job_log(
+                job, f"Refinement pass applied at strength {metadata_json.get('refine_strength')}"
+            )
         else:
             (
                 composite_png,
@@ -730,7 +775,11 @@ def process_one_job() -> bool:
                 subtype=mask_subtype,
                 width=width,
                 height=height,
-                metadata_json={"adapter": metadata_json.get("adapter"), "job_id": job.id, "kind": "mask"},
+                metadata_json={
+                    "adapter": metadata_json.get("adapter"),
+                    "job_id": job.id,
+                    "kind": "mask",
+                },
             )
             output_artifact_ids.append(mask_artifact_id)
             _append_job_log(job, f"Generated mask artifact {mask_artifact_id}")
@@ -769,8 +818,12 @@ def run_forever(interval_seconds: int = 10, poll_jobs: bool = False) -> None:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="AI Image Composer worker scaffold")
     parser.add_argument("--once", action="store_true", help="Run one heartbeat and exit")
-    parser.add_argument("--run-job-once", action="store_true", help="Claim and process one queued job")
-    parser.add_argument("--poll-jobs", action="store_true", help="Poll for queued jobs while running")
+    parser.add_argument(
+        "--run-job-once", action="store_true", help="Claim and process one queued job"
+    )
+    parser.add_argument(
+        "--poll-jobs", action="store_true", help="Poll for queued jobs while running"
+    )
     parser.add_argument(
         "--interval",
         type=int,

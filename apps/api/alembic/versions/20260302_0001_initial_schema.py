@@ -5,17 +5,16 @@ Revises:
 Create Date: 2026-03-02 21:10:00
 """
 
-from typing import Sequence
-from typing import Union
+from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 from sqlalchemy.dialects import postgresql
 
 revision: str = "20260302_0001"
-down_revision: Union[str, None] = None
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = None
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
@@ -24,7 +23,12 @@ def upgrade() -> None:
         sa.Column("id", sa.String(length=64), nullable=False),
         sa.Column("name", sa.String(length=255), nullable=False),
         sa.Column("description", sa.Text(), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
         sa.PrimaryKeyConstraint("id"),
     )
 
@@ -36,8 +40,18 @@ def upgrade() -> None:
         sa.Column("overarching_prompt", sa.Text(), nullable=False),
         sa.Column("style_preset", sa.String(length=64), nullable=False),
         sa.Column("seed_policy", sa.String(length=64), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
         sa.ForeignKeyConstraint(["project_id"], ["projects.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
     )
@@ -49,7 +63,12 @@ def upgrade() -> None:
         sa.Column("scene_id", sa.String(length=64), nullable=False),
         sa.Column("version_number", sa.Integer(), nullable=False),
         sa.Column("scene_spec_json", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
         sa.ForeignKeyConstraint(["scene_id"], ["scenes.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
     )
@@ -71,7 +90,12 @@ def upgrade() -> None:
         sa.Column("visible", sa.Boolean(), nullable=False),
         sa.Column("locked", sa.Boolean(), nullable=False),
         sa.Column("metadata_json", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
         sa.ForeignKeyConstraint(["scene_id"], ["scenes.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
     )
@@ -89,8 +113,18 @@ def upgrade() -> None:
         sa.Column("transform_json", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
         sa.Column("status", sa.String(length=32), nullable=False),
         sa.Column("metadata_json", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
         sa.ForeignKeyConstraint(["layer_id"], ["layers.id"], ondelete="SET NULL"),
         sa.ForeignKeyConstraint(["scene_id"], ["scenes.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
@@ -107,15 +141,24 @@ def upgrade() -> None:
         sa.Column("object_object_id", sa.String(length=64), nullable=False),
         sa.Column("strength", sa.Float(), nullable=False),
         sa.Column("notes", sa.Text(), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
         sa.ForeignKeyConstraint(["object_object_id"], ["objects.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["scene_id"], ["scenes.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["subject_object_id"], ["objects.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
     )
-    op.create_index("ix_relations_object_object_id", "relations", ["object_object_id"], unique=False)
+    op.create_index(
+        "ix_relations_object_object_id", "relations", ["object_object_id"], unique=False
+    )
     op.create_index("ix_relations_scene_id", "relations", ["scene_id"], unique=False)
-    op.create_index("ix_relations_subject_object_id", "relations", ["subject_object_id"], unique=False)
+    op.create_index(
+        "ix_relations_subject_object_id", "relations", ["subject_object_id"], unique=False
+    )
 
     op.create_table(
         "jobs",
@@ -131,7 +174,12 @@ def upgrade() -> None:
         sa.Column("error", sa.Text(), nullable=True),
         sa.Column("started_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("finished_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
         sa.ForeignKeyConstraint(["scene_id"], ["scenes.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
     )
@@ -149,7 +197,12 @@ def upgrade() -> None:
         sa.Column("height", sa.Integer(), nullable=False),
         sa.Column("format", sa.String(length=16), nullable=False),
         sa.Column("metadata_json", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
         sa.ForeignKeyConstraint(["scene_id"], ["scenes.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
     )

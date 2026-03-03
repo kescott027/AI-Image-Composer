@@ -76,7 +76,12 @@ export function SceneListPage() {
           <button type="button" className="button-link" onClick={() => void createNewScene()}>
             Create Scene
           </button>
-          <button type="button" className="mini-button" onClick={() => void loadScenes()} disabled={isLoading}>
+          <button
+            type="button"
+            className="mini-button"
+            onClick={() => void loadScenes()}
+            disabled={isLoading}
+          >
             Refresh
           </button>
         </div>
@@ -90,7 +95,8 @@ export function SceneListPage() {
               <h2>{scene.title}</h2>
               <p>ID: {scene.id}</p>
               <span>
-                Updated: {scene.updated_at ? new Date(scene.updated_at).toLocaleDateString() : "n/a"}
+                Updated:{" "}
+                {scene.updated_at ? new Date(scene.updated_at).toLocaleDateString() : "n/a"}
               </span>
             </article>
           </Link>

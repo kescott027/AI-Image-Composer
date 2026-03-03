@@ -238,11 +238,20 @@ export function SceneCanvas({
           aria-label="Scene canvas viewport"
         >
           <g transform={`translate(${offset.x}, ${offset.y}) scale(${scale})`}>
-            <rect x={0} y={0} width={CANVAS_WIDTH} height={CANVAS_HEIGHT} rx={12} className="canvas-board" />
+            <rect
+              x={0}
+              y={0}
+              width={CANVAS_WIDTH}
+              height={CANVAS_HEIGHT}
+              rx={12}
+              className="canvas-board"
+            />
 
             {sceneSpec.zones.map((zone) => (
               <g key={zone.id}>
-                {zone.shape.type === "lasso" && zone.shape.points && zone.shape.points.length >= 3 ? (
+                {zone.shape.type === "lasso" &&
+                zone.shape.points &&
+                zone.shape.points.length >= 3 ? (
                   <polygon
                     points={zone.shape.points.map((point) => `${point.x},${point.y}`).join(" ")}
                     className="canvas-zone"
@@ -270,7 +279,13 @@ export function SceneCanvas({
                   className="canvas-zone-draft"
                 />
                 {pendingLassoPoints.map((point, index) => (
-                  <circle key={`lasso-point-${index}`} cx={point.x} cy={point.y} r={3} className="canvas-zone-point" />
+                  <circle
+                    key={`lasso-point-${index}`}
+                    cx={point.x}
+                    cy={point.y}
+                    r={3}
+                    className="canvas-zone-point"
+                  />
                 ))}
               </g>
             ) : null}

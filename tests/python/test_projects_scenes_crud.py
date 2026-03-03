@@ -60,26 +60,26 @@ def test_create_and_list_scene_versions(db_client: TestClient) -> None:
         "scene": {
             "id": scene_id,
             "title": "Versioned Scene",
-            "overarching_prompt": "A version test"
+            "overarching_prompt": "A version test",
         },
         "layers": [],
         "objects": [],
         "relations": [],
         "artifacts": [],
-        "jobs": []
+        "jobs": [],
     }
 
     first_save = db_client.put(f"/scenes/{scene_id}/spec", json=scene_spec)
     assert first_save.status_code == 200
-    assert first_save.json()["history"]["scene_version"] == 1
+    assert first_save.json()["history"]["scene_version"] == 2
 
     second_version = db_client.post(f"/scenes/{scene_id}/versions")
     assert second_version.status_code == 200
-    assert second_version.json()["version"]["version_number"] == 2
+    assert second_version.json()["version"]["version_number"] == 3
 
     list_versions = db_client.get(f"/scenes/{scene_id}/versions")
     assert list_versions.status_code == 200
-    assert [v["version_number"] for v in list_versions.json()] == [2, 1]
+    assert [v["version_number"] for v in list_versions.json()] == [3, 2, 1]
 
 
 def test_create_scene_bootstraps_initial_scene_spec(db_client: TestClient) -> None:

@@ -1,6 +1,11 @@
 import type { SceneSpec } from "@ai-image-composer/shared";
 
-import { addLayerCommand, moveLayerCommand, toggleLayerLockCommand, toggleLayerVisibilityCommand } from "../state/commands";
+import {
+  addLayerCommand,
+  moveLayerCommand,
+  toggleLayerLockCommand,
+  toggleLayerVisibilityCommand,
+} from "../state/commands";
 import type { SceneCommand } from "../state/commands";
 
 interface LayersPanelProps {

@@ -129,13 +129,28 @@ export function ZoneEditor({
       />
 
       <div className="tool-row">
-        <button type="button" className="button-link" onClick={onStartRect} disabled={drawingMode === "RECT"}>
+        <button
+          type="button"
+          className="button-link"
+          onClick={onStartRect}
+          disabled={drawingMode === "RECT"}
+        >
           Draw Rect
         </button>
-        <button type="button" className="button-link" onClick={onStartLasso} disabled={drawingMode === "LASSO"}>
+        <button
+          type="button"
+          className="button-link"
+          onClick={onStartLasso}
+          disabled={drawingMode === "LASSO"}
+        >
           Draw Lasso
         </button>
-        <button type="button" className="button-link" onClick={onCancelDrawing} disabled={drawingMode === "NONE"}>
+        <button
+          type="button"
+          className="button-link"
+          onClick={onCancelDrawing}
+          disabled={drawingMode === "NONE"}
+        >
           Cancel
         </button>
       </div>
@@ -167,14 +182,18 @@ export function ZoneEditor({
         <>
           <ul className="zone-list">
             {sceneSpec.zones.map((zone) => (
-              <li key={zone.id} className={`zone-item ${zone.id === activeZoneId ? "is-active" : ""}`}>
+              <li
+                key={zone.id}
+                className={`zone-item ${zone.id === activeZoneId ? "is-active" : ""}`}
+              >
                 <button
                   type="button"
                   className="zone-select"
                   onClick={() => setActiveZoneId(zone.id)}
                 >
-                  {zone.name} ({zone.shape.type}) {Math.round(zone.shape.x)},{Math.round(zone.shape.y)} /{" "}
-                  {Math.round(zone.shape.width)}x{Math.round(zone.shape.height)}
+                  {zone.name} ({zone.shape.type}) {Math.round(zone.shape.x)},
+                  {Math.round(zone.shape.y)} / {Math.round(zone.shape.width)}x
+                  {Math.round(zone.shape.height)}
                 </button>
                 <button
                   type="button"

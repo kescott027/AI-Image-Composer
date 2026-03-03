@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { SCENE_SPEC_SCHEMA_VERSION, createEmptySceneSpec } from "../../packages/shared/src/scenespec";
+import {
+  SCENE_SPEC_SCHEMA_VERSION,
+  createEmptySceneSpec,
+} from "../../packages/shared/src/scenespec";
 
 describe("SceneSpec helpers", () => {
   it("creates an empty SceneSpec with canonical schema version", () => {

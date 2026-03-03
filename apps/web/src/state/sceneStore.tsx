@@ -21,11 +21,7 @@ interface SceneStoreProviderProps {
 }
 
 export function SceneStoreProvider({ sceneId, children }: SceneStoreProviderProps) {
-  const [state, dispatch] = useReducer(
-    sceneStoreReducer,
-    sceneId,
-    createInitialSceneStoreState,
-  );
+  const [state, dispatch] = useReducer(sceneStoreReducer, sceneId, createInitialSceneStoreState);
 
   const executeCommand = useCallback((command: SceneCommand) => {
     dispatch({ type: "EXECUTE_COMMAND", command });

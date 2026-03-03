@@ -95,12 +95,12 @@ See `docs/MODEL_ADAPTER_SETUP.MD` for real-model adapter configuration.
 
 Repository Structure
 /apps
-  /web        React frontend
-  /api        FastAPI backend
-  /worker     Job runner
+/web React frontend
+/api FastAPI backend
+/worker Job runner
 
 /packages
-  /shared     Shared types and SceneSpec definitions
+/shared Shared types and SceneSpec definitions
 Core Concept: SceneSpec
 
 The SceneSpec is the canonical representation of a scene.
@@ -190,17 +190,17 @@ Docker (for Postgres)
 Optional GPU for ML adapters
 
 1. Install dependencies and hooks
-make setup
+   make setup
 2. Start local Postgres
-make db-up
+   make db-up
 3. Apply DB migrations
-make db-migrate
+   make db-migrate
 4. Start API
-pnpm run dev:api
+   pnpm run dev:api
 5. Start Worker
-pnpm run dev:worker
+   pnpm run dev:worker
 6. Start Frontend
-pnpm run dev:web
+   pnpm run dev:web
 
 IUR smoke validation:
 
