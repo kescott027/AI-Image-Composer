@@ -131,6 +131,7 @@ Artifact storage:
 
 - Local artifacts are stored under `.artifacts/` by default.
 - Override with `ARTIFACTS_ROOT=/custom/path`.
+- Enable write-once/read-only files with `AIIC_ARTIFACT_IMMUTABLE_MODE=true`.
 
 API abuse protection:
 

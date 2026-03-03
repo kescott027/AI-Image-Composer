@@ -12,4 +12,5 @@ class ArtifactRecord(BaseModel):
     content_type: str | None = None
     size_bytes: int
     checksum_sha256: str
+    immutable: bool = False
     created_at: str

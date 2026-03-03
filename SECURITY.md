@@ -44,3 +44,4 @@ make secrets-check
 - Local artifact metadata stores a SHA-256 checksum.
 - Artifact download endpoints verify checksum before serving file content.
 - Checksum mismatch returns HTTP `409` (integrity conflict) instead of serving tampered data.
+- Optional immutable mode (`AIIC_ARTIFACT_IMMUTABLE_MODE=true`) sets artifact and metadata files to read-only after creation.
