@@ -84,7 +84,7 @@ Directed 3-layer flow (current next-break implementation pass):
 3. Add preset objects (`Person`, `Table`, `Birthday Cake`).
 4. Generate wireframes (single, cycle 2-5, or N variants), choose preferred candidate.
 5. Drag/place object on canvas and use `Anchor`.
-6. Run `Render All Layers + Composite` or `Render Full Scene + Refine`.
+6. Tune palette/lighting/harmonization controls, then run `Render All Layers + Composite` or `Render Full Scene + Refine`.
 
 Manual mode (without `aiic`):
 

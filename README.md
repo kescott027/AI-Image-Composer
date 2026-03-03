@@ -234,7 +234,7 @@ Directed 3-layer compose flow (Release 0.5 in progress):
 2. In Scene Editor, click `Generate Blocking Layer`.
 3. Add preset objects (`Person`, `Table`, `Birthday Cake`), generate wireframes, and use variant picker.
 4. Drag objects into place on canvas and click `Anchor`.
-5. Run `Render Full Scene + Refine` for ordered object renders + composite + refine pass.
+5. Tune `Palette Preset`, `Lighting Profile`, `Harmonization Strength`, then run `Render Full Scene + Refine`.
 
 Automated acceptance path for this flow:
 

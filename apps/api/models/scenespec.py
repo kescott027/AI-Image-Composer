@@ -87,6 +87,9 @@ class DefaultGenerationSettings(BaseModel):
     steps: int = Field(default=30, ge=1)
     cfg_scale: float = Field(default=7.0, ge=0)
     refine_strength: float = Field(default=0.25, ge=0, le=1)
+    palette_preset: str = "balanced_warm"
+    lighting_profile: str = "soft_indoor"
+    harmonization_strength: float = Field(default=0.6, ge=0, le=1)
 
 
 class ModelAdapterSettings(BaseModel):

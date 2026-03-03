@@ -70,7 +70,7 @@ project -> overarching prompt -> blocking layer -> object wireframes (iterate/se
 9. **Story 121** `[IN PROGRESS]` Ordered Layer Render Orchestrator (bottom-to-top render queue from current scene state)
 10. **Story 122** `[IN PROGRESS]` Per-Layer Render Progress + Retry UX (clear status, fail/retry per object)
 11. **Story 123** `[IN PROGRESS]` Unified Composite Pass (global consistency using overarching prompt context)
-12. **Story 124** `[NOT STARTED]` Palette and Style Harmonization Controls (color consistency knobs + defaults)
+12. **Story 124** `[DONE]` Palette and Style Harmonization Controls (color consistency knobs + defaults)
 13. **Story 125** `[DONE]` End-to-End Acceptance Scenario: Person + Table + Birthday Cake
 14. **Story 126** `[NOT STARTED]` Release 0.5 UX Readiness Pass (professional polish, error states, loading states)
 

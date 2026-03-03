@@ -182,6 +182,9 @@ def _initial_scene_spec(scene: db_models.Scene) -> dict:
                     "steps": 30,
                     "cfg_scale": 7.0,
                     "refine_strength": 0.25,
+                    "palette_preset": "balanced_warm",
+                    "lighting_profile": "soft_indoor",
+                    "harmonization_strength": 0.6,
                 },
                 "models": {
                     "sketch_adapter": "fake_sketch_v1",

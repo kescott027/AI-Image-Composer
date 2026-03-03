@@ -14,6 +14,27 @@ def _text(value: object) -> str:
     return ""
 
 
+def _style_context(scene_spec: dict[str, object], style_preset: str) -> str:
+    settings = scene_spec.get("settings")
+    defaults = settings.get("defaults") if isinstance(settings, dict) else None
+    defaults_dict = defaults if isinstance(defaults, dict) else {}
+
+    palette_preset = _text(defaults_dict.get("palette_preset"))
+    lighting_profile = _text(defaults_dict.get("lighting_profile"))
+    harmonization_strength = defaults_dict.get("harmonization_strength")
+    harmonization_text = ""
+    if isinstance(harmonization_strength, (int, float)):
+        harmonization_text = f"{harmonization_strength:.2f}"
+
+    hints = [
+        f"style {style_preset}" if style_preset else "",
+        f"palette {palette_preset}" if palette_preset else "",
+        f"lighting {lighting_profile}" if lighting_profile else "",
+        f"harmonization {harmonization_text}" if harmonization_text else "",
+    ]
+    return ", ".join(hint for hint in hints if hint)
+
+
 def _object_lookup(scene_spec: dict[str, object]) -> dict[str, dict[str, object]]:
     objects = scene_spec.get("objects")
     if not isinstance(objects, list):
@@ -74,6 +95,7 @@ def compile_prompt_for_job(
     scene_prompt = _text(scene.get("overarching_prompt"))
     scene_negative = _text(scene.get("negative_prompt"))
     style_preset = _text(scene.get("style_preset"))
+    style_context = _style_context(scene_spec, style_preset)
 
     object_lookup = _object_lookup(scene_spec)
     target_object = object_lookup.get(target_object_id) if target_object_id else None
@@ -90,14 +112,14 @@ def compile_prompt_for_job(
             segments = [
                 object_name,
                 object_prompt,
-                f"style {style_preset}" if style_preset else "",
+                style_context,
                 " ; ".join(hints[:2]),
             ]
         else:
             segments = [
                 scene_prompt,
                 "scene composition blocking pass",
-                f"style {style_preset}" if style_preset else "",
+                style_context,
             ]
     elif job_type == "OBJECT_RENDER":
         segments = [
@@ -105,16 +127,16 @@ def compile_prompt_for_job(
             f"subject: {object_name}" if object_name else "",
             object_prompt,
             " ; ".join(hints),
-            f"style {style_preset}" if style_preset else "",
+            style_context,
         ]
     elif job_type == "FINAL_COMPOSITE":
         segments = [
             scene_prompt,
-            f"style {style_preset}" if style_preset else "",
+            style_context,
             "scene-wide composite",
         ]
     else:
-        segments = [scene_prompt, object_prompt, f"style {style_preset}" if style_preset else ""]
+        segments = [scene_prompt, object_prompt, style_context]
 
     compiled_text = ". ".join(segment for segment in segments if segment)
     compiled_negative = ", ".join(part for part in [scene_negative, object_negative] if part)
