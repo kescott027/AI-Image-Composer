@@ -3,7 +3,8 @@ import json
 import logging
 import os
 import time
-from collections.abc import Awaitable, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable
+from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from uuid import uuid4
 
@@ -32,10 +33,6 @@ from sqlalchemy import desc, select
 from sqlalchemy.orm import Session
 from starlette.responses import Response
 
-app = FastAPI(title="AI Image Composer API", version="0.1.0")
-artifact_store = LocalArtifactStore.from_env()
-rate_limiter = RateLimiter.from_env()
-
 
 def _configure_api_logger() -> logging.Logger:
     level_name = os.getenv("AIIC_LOG_LEVEL", "INFO").upper()
@@ -54,11 +51,17 @@ def _configure_api_logger() -> logging.Logger:
 api_logger = _configure_api_logger()
 
 
-@app.on_event("startup")
-def validate_runtime_security() -> None:
+@asynccontextmanager
+async def _app_lifespan(_app: FastAPI) -> AsyncIterator[None]:
     assert_runtime_secrets()
     env_name = os.getenv("AIIC_ENV", "development").strip().lower()
     api_logger.info("runtime_security_validated env=%s", env_name)
+    yield
+
+
+app = FastAPI(title="AI Image Composer API", version="0.1.0", lifespan=_app_lifespan)
+artifact_store = LocalArtifactStore.from_env()
+rate_limiter = RateLimiter.from_env()
 
 
 def reset_rate_limiter_state() -> None:
