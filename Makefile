@@ -1,7 +1,7 @@
 SHELL := /usr/bin/env bash
 .DEFAULT_GOAL := help
 
-.PHONY: help setup db-up db-down db-migrate db-downgrade dev-api dev-worker dev-web openapi lint format format-check test scan ci hooks-install hooks-run clean
+.PHONY: help setup db-up db-down db-migrate db-downgrade dev-api dev-worker worker-job-once dev-web openapi lint format format-check test scan ci hooks-install hooks-run clean
 
 help: ## Show available commands
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "%-16s %s\n", $$1, $$2}'
@@ -26,6 +26,9 @@ dev-api: ## Run FastAPI development server
 
 dev-worker: ## Run worker in polling mode to process queued jobs
 	pnpm run dev:worker
+
+worker-job-once: ## Process a single queued job immediately
+	pnpm run worker:run-job-once
 
 dev-web: ## Run web development server
 	pnpm run dev:web

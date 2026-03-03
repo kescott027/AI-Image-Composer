@@ -88,7 +88,7 @@ API endpoints:
 
 ---
 
-### 8. [NOT STARTED] Implement Fake Generator Adapters (Pipeline Proof)
+### 8. [DONE] Implement Fake Generator Adapters (Pipeline Proof)
 **Deliverable:**  
 Worker generates placeholder PNG outputs for:
 - SKETCH

@@ -71,6 +71,10 @@ pnpm run dev:web
 ```
 
 `dev:worker` runs in polling mode and processes queued jobs.
+Supported fake job adapters currently generate placeholder PNGs for:
+- `SKETCH`
+- `OBJECT_RENDER`
+- `FINAL_COMPOSITE`
 
 Export API OpenAPI schema:
 
