@@ -173,6 +173,8 @@ All primary workflows are wrapped in scripts under `/scripts` and exposed via `m
 - [db-down.sh](/Users/kylescott/git/AI-Image-Composer/scripts/db-down.sh): stop local Postgres
 - [db-migrate.sh](/Users/kylescott/git/AI-Image-Composer/scripts/db-migrate.sh): apply Alembic migrations
 - [db-downgrade.sh](/Users/kylescott/git/AI-Image-Composer/scripts/db-downgrade.sh): roll back one migration
+- [backup-create.sh](/Users/kylescott/git/AI-Image-Composer/scripts/backup-create.sh): create timestamped DB + artifact backup bundle
+- [backup-restore.sh](/Users/kylescott/git/AI-Image-Composer/scripts/backup-restore.sh): restore DB + artifacts from a backup bundle
 
 ## Makefile Commands
 
@@ -191,6 +193,8 @@ Reference: [Makefile](/Users/kylescott/git/AI-Image-Composer/Makefile)
 - `make db-down`
 - `make db-migrate`
 - `make db-downgrade`
+- `make backup-create`
+- `make backup-restore BACKUP=/abs/path/to/aiic-backup.tar.gz`
 - `make lint`
 - `make format`
 - `make format-check`

@@ -1,7 +1,7 @@
 SHELL := /usr/bin/env bash
 .DEFAULT_GOAL := help
 
-.PHONY: help install setup db-up db-down db-migrate db-downgrade dev-api dev-worker worker-job-once dev-web aiic aiic-start aiic-stop aiic-restart aiic-status aiic-logs aiic-run openapi lint format format-check test secrets-check scan ci hooks-install hooks-run iur-smoke iur-happy-path iur-directed-flow iur-directed-3layer clean
+.PHONY: help install setup db-up db-down db-migrate db-downgrade backup-create backup-restore dev-api dev-worker worker-job-once dev-web aiic aiic-start aiic-stop aiic-restart aiic-status aiic-logs aiic-run openapi lint format format-check test secrets-check scan ci hooks-install hooks-run iur-smoke iur-happy-path iur-directed-flow iur-directed-3layer clean
 
 help: ## Show available commands
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "%-16s %s\n", $$1, $$2}'
@@ -23,6 +23,13 @@ db-migrate: ## Apply Alembic migrations to the configured database
 
 db-downgrade: ## Roll back one Alembic migration revision
 	./scripts/db-downgrade.sh
+
+backup-create: ## Create timestamped DB + artifact backup bundle
+	./scripts/backup-create.sh
+
+backup-restore: ## Restore DB + artifacts from a backup bundle (BACKUP=/abs/path.tar.gz)
+	@test -n "$(BACKUP)" || (echo "Usage: make backup-restore BACKUP=/abs/path/to/aiic-backup.tar.gz" && exit 1)
+	./scripts/backup-restore.sh "$(BACKUP)"
 
 dev-api: ## Run FastAPI development server
 	pnpm run dev:api
