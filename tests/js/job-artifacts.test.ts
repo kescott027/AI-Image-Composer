@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { JobRead } from "../../apps/web/src/api/jobs";
 import {
+  mapLatestFinalCompositeArtifactId,
   mapLatestObjectRenderArtifactsByObjectId,
   mapLatestSketchArtifactsByObjectId,
 } from "../../apps/web/src/state/jobArtifacts";
@@ -141,5 +142,53 @@ describe("mapLatestObjectRenderArtifactsByObjectId", () => {
     const map = mapLatestObjectRenderArtifactsByObjectId(jobs);
 
     expect(map).toEqual({});
+  });
+});
+
+describe("mapLatestFinalCompositeArtifactId", () => {
+  it("returns latest successful final composite artifact id", () => {
+    const jobs: JobRead[] = [
+      createJob({
+        id: "job_old_composite",
+        job_type: "FINAL_COMPOSITE",
+        output_artifact_ids: ["art_comp_old"],
+        created_at: "2026-03-02T10:00:00Z",
+      }),
+      createJob({
+        id: "job_new_composite",
+        job_type: "FINAL_COMPOSITE",
+        output_artifact_ids: ["art_comp_new"],
+        created_at: "2026-03-02T11:00:00Z",
+      }),
+      createJob({
+        id: "job_failed_composite",
+        job_type: "FINAL_COMPOSITE",
+        status: "FAILED",
+        output_artifact_ids: ["art_comp_failed"],
+        created_at: "2026-03-02T12:00:00Z",
+      }),
+    ];
+
+    const artifactId = mapLatestFinalCompositeArtifactId(jobs);
+    expect(artifactId).toBe("art_comp_new");
+  });
+
+  it("returns null when no successful final composite exists", () => {
+    const jobs: JobRead[] = [
+      createJob({
+        id: "job_sketch_only",
+        job_type: "SKETCH",
+        output_artifact_ids: ["art_sketch"],
+      }),
+      createJob({
+        id: "job_failed_composite",
+        job_type: "FINAL_COMPOSITE",
+        status: "FAILED",
+        output_artifact_ids: ["art_failed"],
+      }),
+    ];
+
+    const artifactId = mapLatestFinalCompositeArtifactId(jobs);
+    expect(artifactId).toBeNull();
   });
 });

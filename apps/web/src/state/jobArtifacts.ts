@@ -45,3 +45,27 @@ export function mapLatestSketchArtifactsByObjectId(jobs: JobRead[]): Record<stri
 export function mapLatestObjectRenderArtifactsByObjectId(jobs: JobRead[]): Record<string, string> {
   return mapLatestArtifactsByObjectId(jobs, "OBJECT_RENDER");
 }
+
+export function mapLatestFinalCompositeArtifactId(jobs: JobRead[]): string | null {
+  let selectedArtifactId: string | null = null;
+  let selectedCreatedAtMs = -1;
+
+  jobs.forEach((job) => {
+    if (job.job_type !== "FINAL_COMPOSITE" || job.status !== "SUCCEEDED") {
+      return;
+    }
+
+    const artifactId = job.output_artifact_ids[0];
+    if (!artifactId) {
+      return;
+    }
+
+    const createdAtMs = job.created_at ? Date.parse(job.created_at) : 0;
+    if (createdAtMs >= selectedCreatedAtMs) {
+      selectedArtifactId = artifactId;
+      selectedCreatedAtMs = createdAtMs;
+    }
+  });
+
+  return selectedArtifactId;
+}

@@ -17,6 +17,7 @@ import {
 import { SceneCanvas } from "../components/SceneCanvas";
 import { ROUTES } from "../routes";
 import {
+  mapLatestFinalCompositeArtifactId,
   mapLatestObjectRenderArtifactsByObjectId,
   mapLatestSketchArtifactsByObjectId,
 } from "../state/jobArtifacts";
@@ -37,6 +38,7 @@ import { SceneStoreProvider, useSceneStore } from "../state/sceneStore";
 function SceneEditorShell({ sceneId }: { sceneId: string }) {
   const [selectedObjectId, setSelectedObjectId] = useState<string | null>(null);
   const [sceneJobs, setSceneJobs] = useState<JobRead[]>([]);
+  const [showFinalComposite, setShowFinalComposite] = useState(true);
   const [activeSubmission, setActiveSubmission] = useState<SupportedJobType | null>(null);
   const [jobFeedback, setJobFeedback] = useState("No generation jobs submitted yet.");
   const { sceneSpec, commandLog, canUndo, canRedo, executeCommand, undo, redo } = useSceneStore();
@@ -55,6 +57,10 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
   );
   const objectRenderArtifactsByObjectId = useMemo(
     () => mapLatestObjectRenderArtifactsByObjectId(sceneJobs),
+    [sceneJobs],
+  );
+  const finalCompositeArtifactId = useMemo(
+    () => mapLatestFinalCompositeArtifactId(sceneJobs),
     [sceneJobs],
   );
 
@@ -177,6 +183,7 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
           selectedObjectId={selectedObjectId}
           wireframeArtifactsByObjectId={wireframeArtifactsByObjectId}
           objectRenderArtifactsByObjectId={objectRenderArtifactsByObjectId}
+          finalCompositeArtifactId={showFinalComposite ? finalCompositeArtifactId : null}
           onSelectObject={setSelectedObjectId}
         />
 
@@ -262,7 +269,20 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
                 Generate Composite
               </button>
             </div>
+            <div className="tool-row">
+              <button
+                type="button"
+                className="mini-button"
+                onClick={() => setShowFinalComposite((current) => !current)}
+                disabled={!finalCompositeArtifactId}
+              >
+                {showFinalComposite ? "Hide Composite Layer" : "Show Composite Layer"}
+              </button>
+            </div>
             <p className="generation-status">{jobFeedback}</p>
+            <p className="generation-status">
+              Latest composite: {finalCompositeArtifactId ?? "none"}
+            </p>
           </section>
           <JobStatusPanel sceneId={sceneSpec.scene.id} onJobsUpdate={setSceneJobs} />
           <ul className="history-list">

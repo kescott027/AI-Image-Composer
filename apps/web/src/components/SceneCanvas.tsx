@@ -9,6 +9,7 @@ interface SceneCanvasProps {
   selectedObjectId: string | null;
   wireframeArtifactsByObjectId?: Record<string, string>;
   objectRenderArtifactsByObjectId?: Record<string, string>;
+  finalCompositeArtifactId?: string | null;
   onSelectObject: (objectId: string | null) => void;
 }
 
@@ -59,6 +60,7 @@ export function SceneCanvas({
   selectedObjectId,
   wireframeArtifactsByObjectId = {},
   objectRenderArtifactsByObjectId = {},
+  finalCompositeArtifactId = null,
   onSelectObject,
 }: SceneCanvasProps) {
   const canvasRef = useRef<HTMLDivElement | null>(null);
@@ -206,6 +208,17 @@ export function SceneCanvas({
                 </g>
               );
             })}
+            {finalCompositeArtifactId ? (
+              <image
+                href={`/api/artifacts/${finalCompositeArtifactId}`}
+                x={0}
+                y={0}
+                width={820}
+                height={520}
+                preserveAspectRatio="none"
+                pointerEvents="none"
+              />
+            ) : null}
           </g>
         </svg>
       </div>
@@ -215,6 +228,7 @@ export function SceneCanvas({
         <span>Objects: {canvasObjects.length}</span>
         <span>Renders: {Object.keys(objectRenderArtifactsByObjectId).length}</span>
         <span>Wireframes: {Object.keys(wireframeArtifactsByObjectId).length}</span>
+        <span>Composite: {finalCompositeArtifactId ? "on" : "off"}</span>
         <span>Selection: {selectedObjectId ?? "none"}</span>
       </div>
     </section>
