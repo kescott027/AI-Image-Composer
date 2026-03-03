@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 from dataclasses import dataclass
@@ -15,6 +16,10 @@ from apps.api.models.artifact_store import ArtifactRecord
 class StoredArtifact:
     metadata: ArtifactRecord
     file_path: Path
+
+
+class ArtifactIntegrityError(Exception):
+    pass
 
 
 class LocalArtifactStore:
@@ -54,6 +59,7 @@ class LocalArtifactStore:
             format=extension.lstrip("."),
             content_type=content_type,
             size_bytes=len(data),
+            checksum_sha256=hashlib.sha256(data).hexdigest(),
             created_at=created_at,
         )
 
@@ -75,6 +81,13 @@ class LocalArtifactStore:
         if not file_path.exists():
             return None
 
+        actual_checksum = self._sha256_for_file(file_path)
+        if metadata.checksum_sha256 != actual_checksum:
+            raise ArtifactIntegrityError(
+                f"Checksum mismatch for artifact {artifact_id}: "
+                f"expected {metadata.checksum_sha256}, got {actual_checksum}"
+            )
+
         return StoredArtifact(metadata=metadata, file_path=file_path)
 
     def get_metadata(self, artifact_id: str) -> ArtifactRecord | None:
@@ -87,6 +100,14 @@ class LocalArtifactStore:
 
     def _meta_path(self, artifact_id: str) -> Path:
         return self.root / f"{artifact_id}.json"
+
+    @staticmethod
+    def _sha256_for_file(file_path: Path) -> str:
+        digest = hashlib.sha256()
+        with file_path.open("rb") as handle:
+            for chunk in iter(lambda: handle.read(65536), b""):
+                digest.update(chunk)
+        return digest.hexdigest()
 
     @staticmethod
     def _infer_extension(filename: str | None, content_type: str | None) -> str:

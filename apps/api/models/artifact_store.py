@@ -11,4 +11,5 @@ class ArtifactRecord(BaseModel):
     format: str
     content_type: str | None = None
     size_bytes: int
+    checksum_sha256: str
     created_at: str

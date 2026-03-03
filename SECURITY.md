@@ -38,3 +38,9 @@ Validate locally/CI:
 ```bash
 make secrets-check
 ```
+
+## Artifact Integrity Baseline
+
+- Local artifact metadata stores a SHA-256 checksum.
+- Artifact download endpoints verify checksum before serving file content.
+- Checksum mismatch returns HTTP `409` (integrity conflict) instead of serving tampered data.

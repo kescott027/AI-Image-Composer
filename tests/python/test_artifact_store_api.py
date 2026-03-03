@@ -29,10 +29,12 @@ def test_upload_and_retrieve_artifact(tmp_path: Path, monkeypatch) -> None:
     assert payload["uri"].startswith("artifact://local/art_")
     assert payload["filename"].endswith(".png")
     assert payload["size_bytes"] == len(b"fake-image-data")
+    assert len(payload["checksum_sha256"]) == 64
 
     metadata_response = client.get(f"/artifacts/{artifact_id}/meta")
     assert metadata_response.status_code == 200
     assert metadata_response.json()["id"] == artifact_id
+    assert metadata_response.json()["checksum_sha256"] == payload["checksum_sha256"]
 
     file_response = client.get(f"/artifacts/{artifact_id}")
     assert file_response.status_code == 200
@@ -47,3 +49,22 @@ def test_missing_artifact_returns_404(tmp_path: Path, monkeypatch) -> None:
 
     file_response = client.get("/artifacts/art_missing")
     assert file_response.status_code == 404
+
+
+def test_tampered_artifact_returns_409(tmp_path: Path, monkeypatch) -> None:
+    client = _client_with_temp_store(tmp_path, monkeypatch)
+
+    response = client.post(
+        "/artifacts/upload",
+        data={"scene_id": "scene_123", "artifact_type": "IMAGE", "subtype": "WIRE"},
+        files={"file": ("wireframe.png", b"original-bytes", "image/png")},
+    )
+    assert response.status_code == 200
+    payload = response.json()
+
+    tampered_file = tmp_path / payload["filename"]
+    tampered_file.write_bytes(b"tampered-bytes")
+
+    file_response = client.get(f"/artifacts/{payload['id']}")
+    assert file_response.status_code == 409
+    assert "Checksum mismatch" in file_response.json()["detail"]

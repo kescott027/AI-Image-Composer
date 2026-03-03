@@ -23,7 +23,7 @@ from apps.api.models.crud import (
 from apps.api.models.jobs import JobCreate, JobRead
 from apps.api.models.scenespec import SceneSpec
 from apps.api.security.secrets import assert_runtime_secrets
-from apps.api.services.artifact_store import LocalArtifactStore
+from apps.api.services.artifact_store import ArtifactIntegrityError, LocalArtifactStore
 from apps.api.services.prompt_compiler import compile_prompt_for_job
 from apps.api.services.rate_limiter import RateLimiter
 from apps.api.services.relation_conflicts import detect_relation_conflicts
@@ -628,7 +628,10 @@ def get_artifact_metadata(artifact_id: str) -> ArtifactRecord:
 
 @app.get("/artifacts/{artifact_id}", tags=["artifacts"])
 def get_artifact_file(artifact_id: str) -> FileResponse:
-    stored_artifact = artifact_store.get(artifact_id)
+    try:
+        stored_artifact = artifact_store.get(artifact_id)
+    except ArtifactIntegrityError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     if stored_artifact is None:
         raise HTTPException(status_code=404, detail="Artifact not found")
 
