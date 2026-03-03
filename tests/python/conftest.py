@@ -4,11 +4,18 @@ import pytest
 from apps.api.db import models  # noqa: F401
 from apps.api.db.base import Base
 from apps.api.dependencies import get_db_session
-from apps.api.main import app
+from apps.api.main import app, reset_rate_limiter_state
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
+
+
+@pytest.fixture(autouse=True)
+def reset_rate_limiter() -> Generator[None, None, None]:
+    reset_rate_limiter_state()
+    yield
+    reset_rate_limiter_state()
 
 
 @pytest.fixture()

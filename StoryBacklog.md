@@ -103,7 +103,7 @@ Goal: security-first hardening, architecture hardening, reproducibility, observa
 
 1. **Story 71** `[NOT STARTED]` Multi-User Authentication System
 2. **Story 72** `[NOT STARTED]` Role-Based Access Control
-3. **Story 87** `[NOT STARTED]` Rate Limiting & Abuse Protection
+3. **Story 87** `[DONE]` Rate Limiting & Abuse Protection
 4. **Story 90** `[NOT STARTED]` Compliance-Ready Logging
 5. **Story 105** `[NOT STARTED]` Secrets Management and Key Rotation Baseline
 6. **Story 106** `[NOT STARTED]` Dependency/Container Hardening (SBOM + Signed Images)
