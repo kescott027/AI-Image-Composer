@@ -60,6 +60,14 @@ Run full gate locally:
 make ci
 ```
 
+Run scaffold services:
+
+```bash
+pnpm run dev:api
+pnpm run dev:worker
+pnpm run dev:web
+```
+
 ## Self-Serve Scripts
 
 All primary workflows are wrapped in scripts under `/scripts` and exposed via `make` and `pnpm`.

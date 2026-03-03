@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-image-composer.dev/schema/scenespec-0.1.0.json",
+  "title": "SceneSpec",
+  "type": "object",
+  "required": ["schema_version", "scene", "layers", "objects", "relations", "artifacts", "jobs"],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "0.1.0"
+    },
+    "scene": {
+      "type": "object",
+      "required": ["id", "title", "overarching_prompt"],
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "overarching_prompt": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "layers": { "type": "array" },
+    "objects": { "type": "array" },
+    "relations": { "type": "array" },
+    "artifacts": { "type": "array" },
+    "jobs": { "type": "array" }
+  },
+  "additionalProperties": true
+}

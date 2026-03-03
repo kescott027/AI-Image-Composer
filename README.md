@@ -126,7 +126,7 @@ All editor operations modify the SceneSpec.
 All ML jobs consume a snapshot of the SceneSpec.
 All results are tied back to artifact IDs for reproducibility.
 
-See SceneSpec.md for full schema documentation.
+See `docs/SCENE_SPEC.MD` for full schema documentation.
 
 Development Phases
 Phase 0 – Foundations
@@ -180,26 +180,22 @@ Optional global refinement pass
 Local Development
 Prerequisites
 
-Node 18+
+Node 20+
 
-Python 3.10+
+Python 3.11+
 
 Docker (for Postgres)
 
 Optional GPU for ML adapters
 
-1. Start Database
-docker compose up -d
+1. Install dependencies and hooks
+make setup
 2. Start API
-cd apps/api
-uvicorn main:app --reload
+pnpm run dev:api
 3. Start Worker
-cd apps/worker
-python worker.py
+pnpm run dev:worker
 4. Start Frontend
-cd apps/web
-pnpm install
-pnpm dev
+pnpm run dev:web
 Generation Flow
 
 User edits SceneSpec in UI.

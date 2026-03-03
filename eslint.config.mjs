@@ -21,5 +21,13 @@ export default [
         ...globals.node
       }
     }
+  },
+  {
+    files: ["apps/web/**/*.{js,mjs,cjs,ts,tsx}"],
+    languageOptions: {
+      globals: {
+        ...globals.browser
+      }
+    }
   }
 ];

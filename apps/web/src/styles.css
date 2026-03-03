@@ -1,0 +1,24 @@
+:root {
+  color-scheme: light;
+  font-family: "Segoe UI", sans-serif;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: linear-gradient(160deg, #f6f7fb, #dbe4ff);
+  color: #13203b;
+}
+
+.app-shell {
+  max-width: 640px;
+  margin: 4rem auto;
+  padding: 2rem;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 18px 40px rgba(26, 46, 92, 0.15);
+}
+
+h1 {
+  margin-top: 0;
+}
