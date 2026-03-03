@@ -1,0 +1,47 @@
+{
+  "name": "ai-image-composer",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Tooling and foundation for the AI Image Composer monorepo",
+  "packageManager": "pnpm@10.7.0",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "setup": "./scripts/setup.sh",
+    "dev:web": "pnpm --filter @ai-image-composer/web dev",
+    "build:web": "pnpm --filter @ai-image-composer/web build",
+    "preview:web": "pnpm --filter @ai-image-composer/web preview",
+    "dev:api": "uv run uvicorn apps.api.main:app --reload --port 8000",
+    "dev:worker": "uv run python apps/worker/worker.py --poll-jobs --interval 5",
+    "worker:run-job-once": "uv run python apps/worker/worker.py --run-job-once",
+    "openapi:export": "./scripts/export-openapi.sh",
+    "db:up": "./scripts/db-up.sh",
+    "db:down": "./scripts/db-down.sh",
+    "db:migrate": "./scripts/db-migrate.sh",
+    "db:downgrade": "./scripts/db-downgrade.sh",
+    "lint": "./scripts/lint.sh",
+    "format": "./scripts/format.sh write",
+    "format:check": "./scripts/format.sh check",
+    "test": "./scripts/test.sh",
+    "scan": "./scripts/scan.sh",
+    "ci": "./scripts/ci.sh",
+    "iur:smoke": "./scripts/iur-smoke.sh",
+    "hooks:install": "./scripts/hooks-install.sh",
+    "hooks:run": "./scripts/hooks-run.sh",
+    "lint:js": "eslint . --max-warnings=0",
+    "format:js": "prettier . --write",
+    "format:js:check": "prettier . --check",
+    "test:js": "vitest run --passWithNoTests"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.22.0",
+    "@types/node": "^22.13.11",
+    "eslint": "^9.22.0",
+    "globals": "^16.0.0",
+    "prettier": "^3.5.3",
+    "typescript": "^5.8.2",
+    "typescript-eslint": "^8.26.0",
+    "vitest": "^3.0.8"
+  }
+}

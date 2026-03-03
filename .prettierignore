@@ -1,0 +1,7 @@
+node_modules/
+.venv/
+.git/
+coverage/
+dist/
+pnpm-lock.yaml
+uv.lock

@@ -1,0 +1,13 @@
+# Default owners
+* @kescott027
+
+# Workflow and automation ownership
+/.github/ @kescott027
+
+# Documentation ownership
+/*.md @kescott027
+/docs/ @kescott027
+
+# Tooling ownership
+/scripts/ @kescott027
+/Makefile @kescott027
