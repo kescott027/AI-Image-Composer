@@ -207,4 +207,28 @@ describe("scene store reducer", () => {
     const reordered = [...state.sceneSpec.layers].sort((a, b) => a.order - b.order);
     expect(reordered[0]?.id).toBe(middleLayer.id);
   });
+
+  it("loads scene spec snapshots and clears undo/redo stacks", () => {
+    let state = createInitialSceneStoreState("scene_store_load");
+
+    state = sceneStoreReducer(state, {
+      type: "EXECUTE_COMMAND",
+      command: setOverarchingPromptCommand("before-load"),
+    });
+    expect(state.undoStack).toHaveLength(1);
+
+    const loaded = createInitialSceneStoreState("scene_store_loaded").sceneSpec;
+    loaded.scene.overarching_prompt = "loaded prompt";
+
+    state = sceneStoreReducer(state, {
+      type: "LOAD_SCENE_SPEC",
+      sceneSpec: loaded,
+    });
+
+    expect(state.sceneSpec.scene.id).toBe("scene_store_loaded");
+    expect(state.sceneSpec.scene.overarching_prompt).toBe("loaded prompt");
+    expect(state.undoStack).toHaveLength(0);
+    expect(state.redoStack).toHaveLength(0);
+    expect(state.commandLog.at(-1)).toBe("LOAD_SCENE_SPEC");
+  });
 });

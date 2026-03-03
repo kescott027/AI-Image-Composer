@@ -1,4 +1,5 @@
 import { createContext, type ReactNode, useCallback, useContext, useMemo, useReducer } from "react";
+import type { SceneSpec } from "@ai-image-composer/shared";
 
 import type { SceneCommand } from "./commands";
 import { createInitialSceneStoreState, sceneStoreReducer } from "./sceneState";
@@ -9,6 +10,7 @@ interface SceneStoreContextValue {
   undo: () => void;
   redo: () => void;
   resetScene: (sceneId: string) => void;
+  loadSceneSpec: (sceneSpec: SceneSpec) => void;
 }
 
 const SceneStoreContext = createContext<SceneStoreContextValue | null>(null);
@@ -41,9 +43,13 @@ export function SceneStoreProvider({ sceneId, children }: SceneStoreProviderProp
     dispatch({ type: "RESET_SCENE", sceneId: nextSceneId });
   }, []);
 
+  const loadSceneSpec = useCallback((sceneSpec: SceneSpec) => {
+    dispatch({ type: "LOAD_SCENE_SPEC", sceneSpec });
+  }, []);
+
   const value = useMemo(
-    () => ({ state, executeCommand, undo, redo, resetScene }),
-    [state, executeCommand, undo, redo, resetScene],
+    () => ({ state, executeCommand, undo, redo, resetScene, loadSceneSpec }),
+    [state, executeCommand, undo, redo, resetScene, loadSceneSpec],
   );
 
   return <SceneStoreContext.Provider value={value}>{children}</SceneStoreContext.Provider>;
@@ -64,5 +70,6 @@ export function useSceneStore() {
     undo: context.undo,
     redo: context.redo,
     resetScene: context.resetScene,
+    loadSceneSpec: context.loadSceneSpec,
   };
 }

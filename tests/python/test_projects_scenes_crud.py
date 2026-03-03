@@ -80,3 +80,17 @@ def test_create_and_list_scene_versions(db_client: TestClient) -> None:
     list_versions = db_client.get(f"/scenes/{scene_id}/versions")
     assert list_versions.status_code == 200
     assert [v["version_number"] for v in list_versions.json()] == [2, 1]
+
+
+def test_create_scene_bootstraps_initial_scene_spec(db_client: TestClient) -> None:
+    project_id = db_client.post("/projects", json={"name": "Project Bootstrap"}).json()["id"]
+    scene_id = db_client.post(
+        "/scenes",
+        json={"project_id": project_id, "title": "Bootstrap Scene"},
+    ).json()["id"]
+
+    spec_response = db_client.get(f"/scenes/{scene_id}/spec")
+    assert spec_response.status_code == 200
+    spec = spec_response.json()
+    assert spec["scene"]["id"] == scene_id
+    assert [layer["name"] for layer in spec["layers"]] == ["Background", "Objects", "Composite"]

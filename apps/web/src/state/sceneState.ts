@@ -14,7 +14,8 @@ export type SceneStoreAction =
   | { type: "EXECUTE_COMMAND"; command: SceneCommand }
   | { type: "UNDO" }
   | { type: "REDO" }
-  | { type: "RESET_SCENE"; sceneId: string };
+  | { type: "RESET_SCENE"; sceneId: string }
+  | { type: "LOAD_SCENE_SPEC"; sceneSpec: SceneSpec };
 
 function cloneSceneSpec(sceneSpec: SceneSpec): SceneSpec {
   return JSON.parse(JSON.stringify(sceneSpec)) as SceneSpec;
@@ -85,6 +86,14 @@ export function sceneStoreReducer(state: SceneStoreState, action: SceneStoreActi
     }
     case "RESET_SCENE": {
       return createInitialSceneStoreState(action.sceneId);
+    }
+    case "LOAD_SCENE_SPEC": {
+      return {
+        sceneSpec: cloneSceneSpec(action.sceneSpec),
+        undoStack: [],
+        redoStack: [],
+        commandLog: [...state.commandLog, "LOAD_SCENE_SPEC"],
+      };
     }
     default: {
       return state;

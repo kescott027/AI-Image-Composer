@@ -211,7 +211,7 @@ FINAL_COMPOSITE job:
 
 ---
 
-### 21. [NOT STARTED] Implement Scene Versioning (Save Points)
+### 21. [DONE] Implement Scene Versioning (Save Points)
 **Deliverable:**
 - “Save version” action
 - List prior versions
@@ -219,7 +219,7 @@ FINAL_COMPOSITE job:
 
 ---
 
-### 22. [NOT STARTED] Implement Relations Data Model and Basic UI
+### 22. [DONE] Implement Relations Data Model and Basic UI
 **Deliverable:**
 Ability to create relations:
 - faces
@@ -231,7 +231,7 @@ Relations stored in SceneSpec and persisted.
 
 ---
 
-### 23. [NOT STARTED] Implement Relation-Aware Prompt Compilation
+### 23. [DONE] Implement Relation-Aware Prompt Compilation
 **Deliverable:**
 Backend prompt compiler merges:
 - Overarching prompt
@@ -245,7 +245,7 @@ Used when generating jobs.
 
 ## Initial Usable Release (IUR)
 
-### 24. [NOT STARTED] Package Initial Usable Release
+### 24. [DONE] Package Initial Usable Release
 **Definition of Done:**
 A user can:
 - Create a scene

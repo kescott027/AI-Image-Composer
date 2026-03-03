@@ -55,12 +55,14 @@ def test_rejects_scene_id_mismatch(db_client: TestClient) -> None:
     assert "must match" in response.json()["detail"]
 
 
-def test_get_missing_scene_spec_returns_404(db_client: TestClient) -> None:
+def test_get_scene_spec_exists_after_scene_creation(db_client: TestClient) -> None:
     scene_id = _create_scene(db_client)
     response = db_client.get(f"/scenes/{scene_id}/spec")
 
-    assert response.status_code == 404
-    assert response.json()["detail"] == "SceneSpec not found"
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["scene"]["id"] == scene_id
+    assert len(payload["layers"]) == 3
 
 
 def test_openapi_includes_scene_spec_endpoints(db_client: TestClient) -> None:

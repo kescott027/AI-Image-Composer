@@ -30,6 +30,7 @@ from apps.api.models.jobs import JobCreate
 from apps.api.models.jobs import JobRead
 from apps.api.models.scenespec import SceneSpec
 from apps.api.services.artifact_store import LocalArtifactStore
+from apps.api.services.prompt_compiler import compile_prompt_for_job
 
 app = FastAPI(title="AI Image Composer API", version="0.1.0")
 artifact_store = LocalArtifactStore.from_env()
@@ -133,6 +134,74 @@ def _store_scene_version(db: Session, scene_id: str, payload: dict) -> db_models
     return scene_version
 
 
+def _initial_scene_spec(scene: db_models.Scene) -> dict:
+    initial = SceneSpec.model_validate(
+        {
+            "schema_version": "0.1.0",
+            "scene": {
+                "id": scene.id,
+                "title": scene.title,
+                "overarching_prompt": scene.overarching_prompt,
+                "negative_prompt": "",
+                "style_preset": scene.style_preset,
+            },
+            "layers": [
+                {
+                    "id": _generate_id("layer"),
+                    "type": "BACKGROUND",
+                    "name": "Background",
+                    "order": 1,
+                    "visible": True,
+                    "locked": False,
+                    "metadata": {},
+                },
+                {
+                    "id": _generate_id("layer"),
+                    "type": "OBJECT",
+                    "name": "Objects",
+                    "order": 2,
+                    "visible": True,
+                    "locked": False,
+                    "metadata": {},
+                },
+                {
+                    "id": _generate_id("layer"),
+                    "type": "COMPOSITE",
+                    "name": "Composite",
+                    "order": 3,
+                    "visible": True,
+                    "locked": False,
+                    "metadata": {},
+                },
+            ],
+            "objects": [],
+            "relations": [],
+            "artifacts": [],
+            "jobs": [],
+            "zones": [],
+            "constraints": [],
+            "settings": {
+                "units": "px",
+                "canvas": {"width": 820, "height": 520, "background_color": "transparent"},
+                "defaults": {
+                    "seed_policy": scene.seed_policy,
+                    "sampler": "default",
+                    "steps": 30,
+                    "cfg_scale": 7.0,
+                },
+                "models": {
+                    "sketch_adapter": "fake_sketch_v1",
+                    "object_render_adapter": "fake_object_v1",
+                    "composite_adapter": "simple_alpha_v1",
+                    "zone_adapter": "disabled",
+                },
+            },
+            "history": {"scene_version": 0, "notes": ""},
+        }
+    )
+    return initial.model_dump(mode="json")
+
+
 def _job_input_hash(scene_id: str, job_type: str, payload: dict[str, object]) -> str:
     normalized_payload = json.dumps(payload, sort_keys=True, separators=(",", ":"))
     digest = hashlib.sha256(f"{scene_id}:{job_type}:{normalized_payload}".encode("utf-8")).hexdigest()
@@ -181,6 +250,11 @@ def create_scene(payload: SceneCreate, db: Session = Depends(get_db_session)) ->
     db.add(scene)
     db.commit()
     db.refresh(scene)
+
+    initial_spec = _initial_scene_spec(scene)
+    _store_scene_version(db=db, scene_id=scene.id, payload=initial_spec)
+    db.commit()
+
     return _scene_read(scene)
 
 
@@ -314,14 +388,31 @@ def get_scene_version(
 def create_job(payload: JobCreate, db: Session = Depends(get_db_session)) -> JobRead:
     _get_scene_or_404(db, payload.scene_id)
 
+    input_payload = dict(payload.input)
+    scene_spec_payload = input_payload.get("scene_spec")
+    if isinstance(scene_spec_payload, dict):
+        target_object_id = input_payload.get("target_object_id")
+        compiled = compile_prompt_for_job(
+            scene_spec=scene_spec_payload,
+            job_type=payload.job_type.value,
+            target_object_id=target_object_id if isinstance(target_object_id, str) else None,
+        )
+        metadata = input_payload.get("metadata")
+        if not isinstance(metadata, dict):
+            metadata = {}
+        metadata["compiled_prompt"] = compiled.text
+        metadata["compiled_negative_prompt"] = compiled.negative
+        metadata["relation_hints"] = compiled.relation_hints
+        input_payload["metadata"] = metadata
+
     job = db_models.Job(
         id=_generate_id("job"),
         scene_id=payload.scene_id,
         job_type=payload.job_type.value,
         status="QUEUED",
         priority=payload.priority,
-        input_hash=_job_input_hash(payload.scene_id, payload.job_type.value, payload.input),
-        input_json=payload.input,
+        input_hash=_job_input_hash(payload.scene_id, payload.job_type.value, input_payload),
+        input_json=input_payload,
         output_artifact_ids=[],
         logs_json=[],
     )

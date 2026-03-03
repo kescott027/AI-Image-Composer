@@ -66,6 +66,16 @@ p {
   margin: 0.8rem 0 1rem;
 }
 
+.text-input {
+  width: 100%;
+  margin-top: 0.45rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0.58rem 0.65rem;
+  font: inherit;
+  background: #fff;
+}
+
 .button-link {
   display: inline-block;
   border: 1px solid var(--line);
@@ -358,6 +368,41 @@ p {
   margin-top: 0.2rem;
 }
 
+.relations-editor {
+  margin-top: 0.95rem;
+  border-top: 1px dashed var(--line);
+  padding-top: 0.75rem;
+}
+
+.relations-editor h3 {
+  margin: 0 0 0.3rem;
+  font-size: 0.92rem;
+}
+
+.relation-empty {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.74rem;
+}
+
+.relation-list {
+  list-style: none;
+  margin: 0.45rem 0 0;
+  padding: 0;
+}
+
+.relation-item {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0.42rem 0.55rem;
+  margin-bottom: 0.38rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.73rem;
+}
+
 .generation-tools {
   margin-top: 0.95rem;
   border-top: 1px dashed var(--line);
@@ -461,6 +506,44 @@ p {
 .job-logs ul {
   margin: 0.35rem 0 0;
   padding-left: 1rem;
+}
+
+.scene-versions-panel {
+  margin-top: 0.95rem;
+  border-top: 1px dashed var(--line);
+  padding-top: 0.75rem;
+}
+
+.scene-versions-panel h3 {
+  margin: 0 0 0.3rem;
+  font-size: 0.92rem;
+}
+
+.version-list {
+  list-style: none;
+  margin: 0.45rem 0 0;
+  padding: 0;
+}
+
+.version-item {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0.42rem 0.55rem;
+  margin-bottom: 0.38rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.72rem;
+}
+
+.project-create {
+  border: 1px dashed var(--line);
+  border-radius: 14px;
+  padding: 0.8rem 0.9rem;
+  margin-bottom: 1rem;
+  background: rgba(255, 255, 255, 0.55);
 }
 
 .tool-row {

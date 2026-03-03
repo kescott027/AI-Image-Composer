@@ -1,4 +1,5 @@
 import type { JobType, SceneSpec } from "@ai-image-composer/shared";
+import { parseErrorMessage } from "./http";
 
 export type SupportedJobType = Extract<JobType, "SKETCH" | "OBJECT_RENDER" | "FINAL_COMPOSITE">;
 export type JobStatus = "QUEUED" | "RUNNING" | "SUCCEEDED" | "FAILED" | "CANCELED";
@@ -31,17 +32,6 @@ interface ListJobsRequest {
   status?: JobStatus;
 }
 
-interface ApiErrorPayload {
-  detail?: string;
-}
-
-function extractApiErrorMessage(defaultMessage: string, payload: ApiErrorPayload): string {
-  if (typeof payload.detail === "string" && payload.detail.length > 0) {
-    return payload.detail;
-  }
-  return defaultMessage;
-}
-
 export async function createJob(request: CreateJobRequest): Promise<JobRead> {
   const response = await fetch("/api/jobs", {
     method: "POST",
@@ -57,14 +47,7 @@ export async function createJob(request: CreateJobRequest): Promise<JobRead> {
   });
 
   if (!response.ok) {
-    let detail = `Failed to queue ${request.job_type} job`;
-    try {
-      const payload = (await response.json()) as ApiErrorPayload;
-      detail = extractApiErrorMessage(detail, payload);
-    } catch {
-      // Ignore JSON parsing errors and return the generic message.
-    }
-    throw new Error(detail);
+    throw new Error(await parseErrorMessage(response, `Failed to queue ${request.job_type} job`));
   }
 
   return (await response.json()) as JobRead;
@@ -82,14 +65,7 @@ export async function listJobs(request: ListJobsRequest): Promise<JobRead[]> {
   const response = await fetch(`/api/jobs${suffix ? `?${suffix}` : ""}`);
 
   if (!response.ok) {
-    let detail = "Failed to load jobs";
-    try {
-      const payload = (await response.json()) as ApiErrorPayload;
-      detail = extractApiErrorMessage(detail, payload);
-    } catch {
-      // Ignore JSON parsing errors and return the generic message.
-    }
-    throw new Error(detail);
+    throw new Error(await parseErrorMessage(response, "Failed to load jobs"));
   }
 
   return (await response.json()) as JobRead[];

@@ -200,6 +200,11 @@ pnpm run dev:api
 pnpm run dev:worker
 6. Start Frontend
 pnpm run dev:web
+
+IUR smoke validation:
+
+make iur-smoke
+
 Generation Flow
 
 User edits SceneSpec in UI.

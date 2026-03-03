@@ -1,4 +1,4 @@
-import type { SceneSpec } from "@ai-image-composer/shared";
+import type { RelationPredicate, SceneSpec } from "@ai-image-composer/shared";
 
 export interface SceneCommand {
   name: string;
@@ -198,6 +198,133 @@ export function setObjectNegativePromptCommand(
       next.objects = next.objects.map((object) =>
         object.id === objectId ? { ...object, negative_prompt: negativePrompt } : object,
       );
+      return next;
+    },
+  };
+}
+
+export function addRelationCommand(
+  subjectObjectId: string,
+  predicate: RelationPredicate,
+  objectObjectId: string,
+  strength = 1,
+): SceneCommand {
+  return {
+    name: "ADD_RELATION",
+    apply(sceneSpec) {
+      const next = cloneSceneSpec(sceneSpec);
+      if (subjectObjectId === objectObjectId) {
+        return next;
+      }
+      const subjectExists = next.objects.some((object) => object.id === subjectObjectId);
+      const objectExists = next.objects.some((object) => object.id === objectObjectId);
+      if (!subjectExists || !objectExists) {
+        return next;
+      }
+
+      const alreadyExists = next.relations.some(
+        (relation) =>
+          relation.subject_object_id === subjectObjectId &&
+          relation.predicate === predicate &&
+          relation.object_object_id === objectObjectId,
+      );
+      if (alreadyExists) {
+        return next;
+      }
+
+      next.relations.push({
+        id: createId("rel"),
+        subject_object_id: subjectObjectId,
+        predicate,
+        object_object_id: objectObjectId,
+        strength: Math.min(1, Math.max(0, Number(strength.toFixed(2)))),
+        notes: "",
+      });
+      return next;
+    },
+  };
+}
+
+export function removeRelationCommand(relationId: string): SceneCommand {
+  return {
+    name: "REMOVE_RELATION",
+    apply(sceneSpec) {
+      const next = cloneSceneSpec(sceneSpec);
+      next.relations = next.relations.filter((relation) => relation.id !== relationId);
+      return next;
+    },
+  };
+}
+
+export function addZoneRectCommand(name: string, x: number, y: number, width: number, height: number): SceneCommand {
+  return {
+    name: "ADD_ZONE_RECT",
+    apply(sceneSpec) {
+      const next = cloneSceneSpec(sceneSpec);
+      next.zones.push({
+        id: createId("zone"),
+        name,
+        shape: {
+          type: "rect",
+          x,
+          y,
+          width: Math.max(1, width),
+          height: Math.max(1, height),
+        },
+        included_object_ids: [],
+        guidance_prompt: "",
+        negative_prompt: "",
+      });
+      return next;
+    },
+  };
+}
+
+export function addZoneLassoCommand(
+  name: string,
+  points: Array<{ x: number; y: number }>,
+): SceneCommand {
+  return {
+    name: "ADD_ZONE_LASSO",
+    apply(sceneSpec) {
+      const next = cloneSceneSpec(sceneSpec);
+      if (points.length < 3) {
+        return next;
+      }
+
+      const xs = points.map((point) => point.x);
+      const ys = points.map((point) => point.y);
+      const minX = Math.min(...xs);
+      const maxX = Math.max(...xs);
+      const minY = Math.min(...ys);
+      const maxY = Math.max(...ys);
+
+      next.zones.push({
+        id: createId("zone"),
+        name,
+        shape: {
+          type: "lasso",
+          x: minX,
+          y: minY,
+          width: Math.max(1, maxX - minX),
+          height: Math.max(1, maxY - minY),
+          points,
+        },
+        included_object_ids: [],
+        guidance_prompt: "",
+        negative_prompt: "",
+      });
+      return next;
+    },
+  };
+}
+
+export function removeZoneCommand(zoneId: string): SceneCommand {
+  return {
+    name: "REMOVE_ZONE",
+    apply(sceneSpec) {
+      const next = cloneSceneSpec(sceneSpec);
+      next.zones = next.zones.filter((zone) => zone.id !== zoneId);
       return next;
     },
   };

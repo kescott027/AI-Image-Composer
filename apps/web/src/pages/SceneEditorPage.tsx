@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
 import {
@@ -7,13 +7,22 @@ import {
   type JobRead,
   type SupportedJobType,
 } from "../api/jobs";
-import { LayersPanel } from "../components/LayersPanel";
+import {
+  createSceneVersion,
+  getSceneSpec,
+  getSceneVersion,
+  listSceneVersions,
+  upsertSceneSpec,
+  type SceneVersionRead,
+} from "../api/scenes";
 import { JobStatusPanel } from "../components/JobStatusPanel";
+import { LayersPanel } from "../components/LayersPanel";
 import { ObjectPromptEditor, type ObjectPromptEditorValues } from "../components/ObjectPromptEditor";
 import {
   type OverarchingPromptEditorValues,
   OverarchingPromptEditor,
 } from "../components/OverarchingPromptEditor";
+import { RelationsEditor } from "../components/RelationsEditor";
 import { SceneCanvas } from "../components/SceneCanvas";
 import { ROUTES } from "../routes";
 import {
@@ -24,12 +33,12 @@ import {
 import {
   addObjectCommand,
   moveObjectCommand,
-  setObjectNegativePromptCommand,
-  setObjectPromptCommand,
   moveObjectZOrderCommand,
   rotateObjectCommand,
   scaleObjectCommand,
   setNegativePromptCommand,
+  setObjectNegativePromptCommand,
+  setObjectPromptCommand,
   setOverarchingPromptCommand,
   setStylePresetCommand,
 } from "../state/commands";
@@ -41,7 +50,27 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
   const [showFinalComposite, setShowFinalComposite] = useState(true);
   const [activeSubmission, setActiveSubmission] = useState<SupportedJobType | null>(null);
   const [jobFeedback, setJobFeedback] = useState("No generation jobs submitted yet.");
-  const { sceneSpec, commandLog, canUndo, canRedo, executeCommand, undo, redo } = useSceneStore();
+  const [sceneLoadMessage, setSceneLoadMessage] = useState("Loading scene...");
+  const [sceneVersionMessage, setSceneVersionMessage] = useState("No manual versions saved yet.");
+  const [persistMessage, setPersistMessage] = useState("Scene persistence idle.");
+  const [sceneVersions, setSceneVersions] = useState<SceneVersionRead[]>([]);
+  const [isHydratedFromApi, setIsHydratedFromApi] = useState(false);
+  const [isLoadingScene, setIsLoadingScene] = useState(true);
+  const [isPersistingScene, setIsPersistingScene] = useState(false);
+  const [isSavingVersion, setIsSavingVersion] = useState(false);
+
+  const autosaveSkipRef = useRef(true);
+
+  const {
+    sceneSpec,
+    commandLog,
+    canUndo,
+    canRedo,
+    executeCommand,
+    undo,
+    redo,
+    loadSceneSpec,
+  } = useSceneStore();
 
   const objectLayer = useMemo(
     () => sceneSpec.layers.find((layer) => layer.type === "OBJECT"),
@@ -51,6 +80,7 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
     () => sceneSpec.objects.find((object) => object.id === selectedObjectId) ?? null,
     [sceneSpec.objects, selectedObjectId],
   );
+
   const wireframeArtifactsByObjectId = useMemo(
     () => mapLatestSketchArtifactsByObjectId(sceneJobs),
     [sceneJobs],
@@ -62,6 +92,124 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
   const finalCompositeArtifactId = useMemo(
     () => mapLatestFinalCompositeArtifactId(sceneJobs),
     [sceneJobs],
+  );
+
+  const refreshSceneVersions = useCallback(async () => {
+    try {
+      const versions = await listSceneVersions(sceneId);
+      setSceneVersions(versions);
+      if (versions.length === 0) {
+        setSceneVersionMessage("No saved versions yet.");
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to fetch versions";
+      setSceneVersionMessage(`Version list unavailable: ${message}`);
+    }
+  }, [sceneId]);
+
+  useEffect(() => {
+    let isActive = true;
+
+    const hydrateFromApi = async () => {
+      setIsLoadingScene(true);
+      setSceneLoadMessage("Loading scene from API...");
+      try {
+        const loaded = await getSceneSpec(sceneId);
+        if (!isActive) {
+          return;
+        }
+        loadSceneSpec(loaded);
+        setIsHydratedFromApi(true);
+        setSceneLoadMessage("Scene loaded from API.");
+      } catch (error) {
+        if (!isActive) {
+          return;
+        }
+        const message = error instanceof Error ? error.message : "Failed to load scene spec";
+        setSceneLoadMessage(`Using local scene seed: ${message}`);
+        setIsHydratedFromApi(false);
+      } finally {
+        if (isActive) {
+          setIsLoadingScene(false);
+        }
+      }
+
+      await refreshSceneVersions();
+    };
+
+    void hydrateFromApi();
+    return () => {
+      isActive = false;
+    };
+  }, [loadSceneSpec, refreshSceneVersions, sceneId]);
+
+  useEffect(() => {
+    if (!isHydratedFromApi || isLoadingScene) {
+      return;
+    }
+
+    if (autosaveSkipRef.current) {
+      autosaveSkipRef.current = false;
+      return;
+    }
+
+    const timer = window.setTimeout(async () => {
+      try {
+        setPersistMessage("Auto-saving scene spec...");
+        await upsertSceneSpec(sceneId, sceneSpec);
+        setPersistMessage(`Auto-saved at ${new Date().toLocaleTimeString()}.`);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Failed to auto-save";
+        setPersistMessage(`Auto-save failed: ${message}`);
+      }
+    }, 900);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [sceneId, sceneSpec, isHydratedFromApi, isLoadingScene, commandLog.length]);
+
+  const saveScene = useCallback(async () => {
+    setIsPersistingScene(true);
+    try {
+      await upsertSceneSpec(sceneId, sceneSpec);
+      setPersistMessage(`Scene saved at ${new Date().toLocaleTimeString()}.`);
+      await refreshSceneVersions();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to save scene";
+      setPersistMessage(`Save failed: ${message}`);
+    } finally {
+      setIsPersistingScene(false);
+    }
+  }, [refreshSceneVersions, sceneId, sceneSpec]);
+
+  const saveVersion = useCallback(async () => {
+    setIsSavingVersion(true);
+    try {
+      const result = await createSceneVersion(sceneId, sceneSpec);
+      setSceneVersionMessage(`Saved version ${result.version.version_number}.`);
+      await refreshSceneVersions();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to save version";
+      setSceneVersionMessage(`Save version failed: ${message}`);
+    } finally {
+      setIsSavingVersion(false);
+    }
+  }, [refreshSceneVersions, sceneId, sceneSpec]);
+
+  const restoreVersion = useCallback(
+    async (versionNumber: number) => {
+      try {
+        const restored = await getSceneVersion(sceneId, versionNumber);
+        loadSceneSpec(restored);
+        setSceneVersionMessage(`Restored version ${versionNumber}.`);
+        setPersistMessage("Version restored. Save or keep editing.");
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Failed to restore version";
+        setSceneVersionMessage(`Restore failed: ${message}`);
+      }
+    },
+    [loadSceneSpec, sceneId],
   );
 
   const applyScenePrompt = (values: OverarchingPromptEditorValues) => {
@@ -137,6 +285,7 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
     setJobFeedback(`Submitting ${jobType} job...`);
 
     try {
+      await upsertSceneSpec(sceneId, sceneSpec);
       const input =
         (jobType === "OBJECT_RENDER" || jobType === "SKETCH") && selectedObject
           ? buildGenerationInput(sceneSpec, { targetObjectId: selectedObject.id })
@@ -147,6 +296,7 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
         input,
       });
       setJobFeedback(`Queued ${job.job_type} as ${job.id} (status: ${job.status}).`);
+      setPersistMessage("Scene snapshot persisted for queued job.");
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown job submission error";
       setJobFeedback(`Job submission failed: ${message}`);
@@ -161,6 +311,7 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
         <div>
           <h1>Scene Editor</h1>
           <p>Scene: {sceneId || "unknown"}</p>
+          <p>{sceneLoadMessage}</p>
         </div>
         <div className="toolbar-cluster">
           <button type="button" className="button-link" onClick={undo} disabled={!canUndo}>
@@ -168,6 +319,12 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
           </button>
           <button type="button" className="button-link" onClick={redo} disabled={!canRedo}>
             Redo
+          </button>
+          <button type="button" className="button-link" onClick={() => void saveScene()} disabled={isPersistingScene}>
+            Save Scene
+          </button>
+          <button type="button" className="button-link" onClick={() => void saveVersion()} disabled={isSavingVersion || isLoadingScene}>
+            Save Version
           </button>
           <Link to={ROUTES.projects} className="button-link">
             Projects
@@ -189,7 +346,8 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
 
         <aside className="panel panel-right">
           <h2>Right Panel</h2>
-          <p>Prompt and command history</p>
+          <p>Prompt, constraints, generation, and version history</p>
+          <p className="generation-status">{persistMessage}</p>
           <OverarchingPromptEditor scene={sceneSpec.scene} onApply={applyScenePrompt} />
           <button
             type="button"
@@ -240,6 +398,7 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
             </div>
           </div>
           <ObjectPromptEditor selectedObject={selectedObject} onApply={applyObjectPrompt} />
+          <RelationsEditor sceneSpec={sceneSpec} executeCommand={executeCommand} />
           <section className="generation-tools">
             <h3>Generation Jobs</h3>
             <p>Queue backend jobs. SKETCH and OBJECT_RENDER use the selected object.</p>
@@ -247,7 +406,7 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
               <button
                 type="button"
                 className="button-link"
-                onClick={() => submitGenerationJob("SKETCH")}
+                onClick={() => void submitGenerationJob("SKETCH")}
                 disabled={activeSubmission !== null || !selectedObject}
               >
                 Generate Wireframe
@@ -255,7 +414,7 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
               <button
                 type="button"
                 className="button-link"
-                onClick={() => submitGenerationJob("OBJECT_RENDER")}
+                onClick={() => void submitGenerationJob("OBJECT_RENDER")}
                 disabled={activeSubmission !== null || !selectedObject}
               >
                 Render Object
@@ -263,7 +422,7 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
               <button
                 type="button"
                 className="button-link"
-                onClick={() => submitGenerationJob("FINAL_COMPOSITE")}
+                onClick={() => void submitGenerationJob("FINAL_COMPOSITE")}
                 disabled={activeSubmission !== null}
               >
                 Generate Composite
@@ -283,6 +442,30 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
             <p className="generation-status">
               Latest composite: {finalCompositeArtifactId ?? "none"}
             </p>
+          </section>
+          <section className="scene-versions-panel">
+            <h3>Scene Versions</h3>
+            <p>{sceneVersionMessage}</p>
+            {sceneVersions.length === 0 ? (
+              <p className="job-empty">No save points yet.</p>
+            ) : (
+              <ul className="version-list">
+                {sceneVersions.map((version) => (
+                  <li key={version.id} className="version-item">
+                    <span>
+                      v{version.version_number} {version.created_at ? `(${new Date(version.created_at).toLocaleString()})` : ""}
+                    </span>
+                    <button
+                      type="button"
+                      className="mini-button"
+                      onClick={() => void restoreVersion(version.version_number)}
+                    >
+                      Restore
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
           </section>
           <JobStatusPanel sceneId={sceneSpec.scene.id} onJobsUpdate={setSceneJobs} />
           <ul className="history-list">
