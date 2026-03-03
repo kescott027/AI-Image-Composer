@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import type { JobRead } from "../../apps/web/src/api/jobs";
-import { mapLatestSketchArtifactsByObjectId } from "../../apps/web/src/state/jobArtifacts";
+import {
+  mapLatestObjectRenderArtifactsByObjectId,
+  mapLatestSketchArtifactsByObjectId,
+} from "../../apps/web/src/state/jobArtifacts";
 
 function createJob(overrides: Partial<JobRead>): JobRead {
   return {
@@ -80,6 +83,62 @@ describe("mapLatestSketchArtifactsByObjectId", () => {
     ];
 
     const map = mapLatestSketchArtifactsByObjectId(jobs);
+
+    expect(map).toEqual({});
+  });
+});
+
+describe("mapLatestObjectRenderArtifactsByObjectId", () => {
+  it("maps latest successful object render artifact per object", () => {
+    const jobs: JobRead[] = [
+      createJob({
+        id: "job_old_render",
+        job_type: "OBJECT_RENDER",
+        input: { target_object_id: "obj_hero" },
+        output_artifact_ids: ["art_render_old"],
+        created_at: "2026-03-02T10:00:00Z",
+      }),
+      createJob({
+        id: "job_new_render",
+        job_type: "OBJECT_RENDER",
+        input: { target_object_id: "obj_hero" },
+        output_artifact_ids: ["art_render_new"],
+        created_at: "2026-03-02T11:00:00Z",
+      }),
+      createJob({
+        id: "job_sketch",
+        job_type: "SKETCH",
+        input: { target_object_id: "obj_hero" },
+        output_artifact_ids: ["art_sketch"],
+        created_at: "2026-03-02T12:00:00Z",
+      }),
+    ];
+
+    const map = mapLatestObjectRenderArtifactsByObjectId(jobs);
+
+    expect(map).toEqual({
+      obj_hero: "art_render_new",
+    });
+  });
+
+  it("ignores failed and unbound object render jobs", () => {
+    const jobs: JobRead[] = [
+      createJob({
+        id: "job_failed_render",
+        job_type: "OBJECT_RENDER",
+        status: "FAILED",
+        input: { target_object_id: "obj_1" },
+        output_artifact_ids: ["art_failed"],
+      }),
+      createJob({
+        id: "job_no_target_render",
+        job_type: "OBJECT_RENDER",
+        input: {},
+        output_artifact_ids: ["art_scene"],
+      }),
+    ];
+
+    const map = mapLatestObjectRenderArtifactsByObjectId(jobs);
 
     expect(map).toEqual({});
   });

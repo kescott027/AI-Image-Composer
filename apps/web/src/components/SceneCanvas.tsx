@@ -8,6 +8,7 @@ interface SceneCanvasProps {
   sceneSpec: SceneSpec;
   selectedObjectId: string | null;
   wireframeArtifactsByObjectId?: Record<string, string>;
+  objectRenderArtifactsByObjectId?: Record<string, string>;
   onSelectObject: (objectId: string | null) => void;
 }
 
@@ -57,6 +58,7 @@ export function SceneCanvas({
   sceneSpec,
   selectedObjectId,
   wireframeArtifactsByObjectId = {},
+  objectRenderArtifactsByObjectId = {},
   onSelectObject,
 }: SceneCanvasProps) {
   const canvasRef = useRef<HTMLDivElement | null>(null);
@@ -157,7 +159,9 @@ export function SceneCanvas({
               }
 
               const isSelected = selectedObjectId === object.id;
+              const objectRenderArtifactId = objectRenderArtifactsByObjectId[object.id];
               const wireframeArtifactId = wireframeArtifactsByObjectId[object.id];
+              const artifactToDisplay = objectRenderArtifactId ?? wireframeArtifactId;
 
               return (
                 <g
@@ -171,15 +175,15 @@ export function SceneCanvas({
                   <g
                     transform={`translate(${object.x + object.width / 2}, ${object.y + object.height / 2}) rotate(${object.rotationDeg}) translate(${-object.width / 2}, ${-object.height / 2})`}
                   >
-                    {wireframeArtifactId ? (
+                    {artifactToDisplay ? (
                       <image
-                        href={`/api/artifacts/${wireframeArtifactId}`}
+                        href={`/api/artifacts/${artifactToDisplay}`}
                         x={0}
                         y={0}
                         width={object.width}
                         height={object.height}
                         preserveAspectRatio="none"
-                        opacity={0.78}
+                        opacity={objectRenderArtifactId ? 1 : 0.78}
                       />
                     ) : null}
                     <rect
@@ -188,7 +192,7 @@ export function SceneCanvas({
                       width={object.width}
                       height={object.height}
                       rx={10}
-                      fill={wireframeArtifactId ? `${layerInfo.color}12` : `${layerInfo.color}33`}
+                      fill={artifactToDisplay ? `${layerInfo.color}10` : `${layerInfo.color}33`}
                       stroke={isSelected ? "#0d1f3a" : layerInfo.color}
                       strokeWidth={isSelected ? 3 : 2}
                     />
@@ -209,6 +213,7 @@ export function SceneCanvas({
       <div className="canvas-footer">
         <span>Visible layers: {visibleLayers.length}</span>
         <span>Objects: {canvasObjects.length}</span>
+        <span>Renders: {Object.keys(objectRenderArtifactsByObjectId).length}</span>
         <span>Wireframes: {Object.keys(wireframeArtifactsByObjectId).length}</span>
         <span>Selection: {selectedObjectId ?? "none"}</span>
       </div>

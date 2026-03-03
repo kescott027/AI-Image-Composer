@@ -5,11 +5,14 @@ interface SelectedArtifact {
   createdAtMs: number;
 }
 
-export function mapLatestSketchArtifactsByObjectId(jobs: JobRead[]): Record<string, string> {
+function mapLatestArtifactsByObjectId(
+  jobs: JobRead[],
+  jobType: "SKETCH" | "OBJECT_RENDER",
+): Record<string, string> {
   const selected = new Map<string, SelectedArtifact>();
 
   jobs.forEach((job) => {
-    if (job.job_type !== "SKETCH" || job.status !== "SUCCEEDED") {
+    if (job.job_type !== jobType || job.status !== "SUCCEEDED") {
       return;
     }
 
@@ -33,4 +36,12 @@ export function mapLatestSketchArtifactsByObjectId(jobs: JobRead[]): Record<stri
   return Object.fromEntries(
     Array.from(selected.entries()).map(([objectId, value]) => [objectId, value.artifactId]),
   );
+}
+
+export function mapLatestSketchArtifactsByObjectId(jobs: JobRead[]): Record<string, string> {
+  return mapLatestArtifactsByObjectId(jobs, "SKETCH");
+}
+
+export function mapLatestObjectRenderArtifactsByObjectId(jobs: JobRead[]): Record<string, string> {
+  return mapLatestArtifactsByObjectId(jobs, "OBJECT_RENDER");
 }

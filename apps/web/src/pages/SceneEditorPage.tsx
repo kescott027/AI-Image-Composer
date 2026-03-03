@@ -16,7 +16,10 @@ import {
 } from "../components/OverarchingPromptEditor";
 import { SceneCanvas } from "../components/SceneCanvas";
 import { ROUTES } from "../routes";
-import { mapLatestSketchArtifactsByObjectId } from "../state/jobArtifacts";
+import {
+  mapLatestObjectRenderArtifactsByObjectId,
+  mapLatestSketchArtifactsByObjectId,
+} from "../state/jobArtifacts";
 import {
   addObjectCommand,
   moveObjectCommand,
@@ -48,6 +51,10 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
   );
   const wireframeArtifactsByObjectId = useMemo(
     () => mapLatestSketchArtifactsByObjectId(sceneJobs),
+    [sceneJobs],
+  );
+  const objectRenderArtifactsByObjectId = useMemo(
+    () => mapLatestObjectRenderArtifactsByObjectId(sceneJobs),
     [sceneJobs],
   );
 
@@ -169,6 +176,7 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
           sceneSpec={sceneSpec}
           selectedObjectId={selectedObjectId}
           wireframeArtifactsByObjectId={wireframeArtifactsByObjectId}
+          objectRenderArtifactsByObjectId={objectRenderArtifactsByObjectId}
           onSelectObject={setSelectedObjectId}
         />
 
