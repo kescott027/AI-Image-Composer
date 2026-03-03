@@ -84,7 +84,7 @@ Directed 3-layer flow (current next-break implementation pass):
 3. Add preset objects (`Person`, `Table`, `Birthday Cake`).
 4. Generate wireframes (single, cycle 2-5, or N variants), choose preferred candidate.
 5. Drag/place object on canvas and use `Anchor`.
-6. Run `Render All Layers + Composite` or `Render Full Scene + Refine`.
+6. Tune palette/lighting/harmonization controls, then run `Render All Layers + Composite` or `Render Full Scene + Refine`.
 
 Manual mode (without `aiic`):
 
@@ -145,6 +145,10 @@ All primary workflows are wrapped in scripts under `/scripts` and exposed via `m
 - [ci.sh](/Users/kylescott/git/AI-Image-Composer/scripts/ci.sh): local CI gate
 - [hooks-install.sh](/Users/kylescott/git/AI-Image-Composer/scripts/hooks-install.sh): install local git hooks
 - [hooks-run.sh](/Users/kylescott/git/AI-Image-Composer/scripts/hooks-run.sh): run all hooks on demand
+- [iur-smoke.sh](/Users/kylescott/git/AI-Image-Composer/scripts/iur-smoke.sh): baseline API smoke flow wrapper
+- [iur-happy-path.sh](/Users/kylescott/git/AI-Image-Composer/scripts/iur-happy-path.sh): smoke + worker processing + artifact validation
+- [iur-directed-3layer.sh](/Users/kylescott/git/AI-Image-Composer/scripts/iur-directed-3layer.sh): directed person/table/cake acceptance scenario
+- [iur_smoke.py](/Users/kylescott/git/AI-Image-Composer/scripts/iur_smoke.py): shared smoke runner with `mvp` and `directed-3-layer` scenarios
 - [db-up.sh](/Users/kylescott/git/AI-Image-Composer/scripts/db-up.sh): start local Postgres
 - [db-down.sh](/Users/kylescott/git/AI-Image-Composer/scripts/db-down.sh): stop local Postgres
 - [db-migrate.sh](/Users/kylescott/git/AI-Image-Composer/scripts/db-migrate.sh): apply Alembic migrations
@@ -175,6 +179,10 @@ Reference: [Makefile](/Users/kylescott/git/AI-Image-Composer/Makefile)
 - `make ci`
 - `make hooks-install`
 - `make hooks-run`
+- `make iur-smoke`
+- `make iur-happy-path`
+- `make iur-directed-flow`
+- `make iur-directed-3layer`
 - `make clean`
 
 ## Git Hooks

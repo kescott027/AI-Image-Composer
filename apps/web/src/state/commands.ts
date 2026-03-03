@@ -178,6 +178,41 @@ export function setRefineStrengthCommand(refineStrength: number): SceneCommand {
   };
 }
 
+export function setPalettePresetCommand(palettePreset: string): SceneCommand {
+  return {
+    name: "SET_PALETTE_PRESET",
+    apply(sceneSpec) {
+      const next = cloneSceneSpec(sceneSpec);
+      next.settings.defaults.palette_preset = palettePreset.trim() || "balanced_warm";
+      return next;
+    },
+  };
+}
+
+export function setLightingProfileCommand(lightingProfile: string): SceneCommand {
+  return {
+    name: "SET_LIGHTING_PROFILE",
+    apply(sceneSpec) {
+      const next = cloneSceneSpec(sceneSpec);
+      next.settings.defaults.lighting_profile = lightingProfile.trim() || "soft_indoor";
+      return next;
+    },
+  };
+}
+
+export function setHarmonizationStrengthCommand(harmonizationStrength: number): SceneCommand {
+  return {
+    name: "SET_HARMONIZATION_STRENGTH",
+    apply(sceneSpec) {
+      const next = cloneSceneSpec(sceneSpec);
+      next.settings.defaults.harmonization_strength = Number(
+        clamp(harmonizationStrength, 0, 1).toFixed(2),
+      );
+      return next;
+    },
+  };
+}
+
 export function addLayerCommand(
   name: string,
   type: "BACKGROUND" | "OBJECT" | "MASK" | "COMPOSITE" | "ZONE" = "OBJECT",

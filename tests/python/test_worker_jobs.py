@@ -400,7 +400,16 @@ def test_process_one_job_refine_generates_refined_artifact(monkeypatch, tmp_path
                 priority=0,
                 input_json={
                     "source_artifact_id": source.id,
-                    "scene_spec": {"settings": {"defaults": {"refine_strength": 0.4}}},
+                    "scene_spec": {
+                        "settings": {
+                            "defaults": {
+                                "refine_strength": 0.4,
+                                "palette_preset": "vibrant_pop",
+                                "lighting_profile": "golden_hour",
+                                "harmonization_strength": 0.8,
+                            }
+                        }
+                    },
                 },
                 output_artifact_ids=[],
                 logs_json=[],
@@ -425,6 +434,9 @@ def test_process_one_job_refine_generates_refined_artifact(monkeypatch, tmp_path
         assert refined_artifact.subtype == "REFINED"
         assert refined_artifact.metadata_json["source_artifact_id"] == source.id
         assert refined_artifact.metadata_json["refine_strength"] == 0.4
+        assert refined_artifact.metadata_json["palette_preset"] == "vibrant_pop"
+        assert refined_artifact.metadata_json["lighting_profile"] == "golden_hour"
+        assert refined_artifact.metadata_json["harmonization_strength"] == 0.8
 
     Base.metadata.drop_all(bind=engine)
     engine.dispose()

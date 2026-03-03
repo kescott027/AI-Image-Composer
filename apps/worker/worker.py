@@ -13,6 +13,19 @@ from sqlalchemy import asc, desc, select
 from sqlalchemy.orm import Session
 
 _artifact_store: LocalArtifactStore | None = None
+PALETTE_TINTS: dict[str, tuple[int, int, int]] = {
+    "balanced_warm": (226, 189, 152),
+    "vibrant_pop": (230, 176, 214),
+    "muted_cinematic": (168, 174, 189),
+    "pastel_soft": (221, 206, 228),
+    "nocturne_cool": (132, 162, 208),
+}
+LIGHTING_TINTS: dict[str, tuple[int, int, int]] = {
+    "soft_indoor": (245, 218, 188),
+    "golden_hour": (255, 198, 142),
+    "studio_even": (226, 232, 239),
+    "night_neon": (153, 176, 255),
+}
 
 
 def get_artifact_store() -> LocalArtifactStore:
@@ -570,6 +583,31 @@ def _refine_strength(scene_spec: dict[str, object] | None) -> float:
     return min(1.0, max(0.0, _to_float(defaults.get("refine_strength"), 0.25)))
 
 
+def _style_harmonization_settings(scene_spec: dict[str, object] | None) -> tuple[str, str, float]:
+    if not isinstance(scene_spec, dict):
+        return "balanced_warm", "soft_indoor", 0.6
+    settings = scene_spec.get("settings")
+    if not isinstance(settings, dict):
+        return "balanced_warm", "soft_indoor", 0.6
+    defaults = settings.get("defaults")
+    if not isinstance(defaults, dict):
+        return "balanced_warm", "soft_indoor", 0.6
+
+    palette_preset = defaults.get("palette_preset")
+    if not isinstance(palette_preset, str) or not palette_preset:
+        palette_preset = "balanced_warm"
+
+    lighting_profile = defaults.get("lighting_profile")
+    if not isinstance(lighting_profile, str) or not lighting_profile:
+        lighting_profile = "soft_indoor"
+
+    harmonization_strength = min(
+        1.0,
+        max(0.0, _to_float(defaults.get("harmonization_strength"), 0.6)),
+    )
+    return palette_preset, lighting_profile, harmonization_strength
+
+
 def _render_refinement_pass(
     db: Session,
     job: db_models.Job,
@@ -585,6 +623,9 @@ def _render_refinement_pass(
         )
 
     strength = _refine_strength(scene_spec)
+    palette_preset, lighting_profile, harmonization_strength = _style_harmonization_settings(
+        scene_spec
+    )
     source_image: Image.Image | None = None
 
     if source_artifact_id:
@@ -611,7 +652,21 @@ def _render_refinement_pass(
     softened = source_image.filter(ImageFilter.GaussianBlur(radius=blur_radius))
     blend_alpha = min(0.6, max(0.08, 0.55 * strength))
     blended = Image.blend(source_image, softened, blend_alpha)
-    refined = blended.filter(
+
+    colorized = blended
+    palette_tint = PALETTE_TINTS.get(palette_preset)
+    if palette_tint and harmonization_strength > 0:
+        tint_overlay = Image.new("RGBA", blended.size, (*palette_tint, 255))
+        tint_alpha = min(0.35, max(0.0, 0.08 + (0.2 * harmonization_strength)))
+        colorized = Image.blend(colorized, tint_overlay, tint_alpha)
+
+    lighting_tint = LIGHTING_TINTS.get(lighting_profile)
+    if lighting_tint and harmonization_strength > 0:
+        light_overlay = Image.new("RGBA", blended.size, (*lighting_tint, 255))
+        light_alpha = min(0.2, max(0.0, 0.04 + (0.12 * harmonization_strength)))
+        colorized = Image.blend(colorized, light_overlay, light_alpha)
+
+    refined = colorized.filter(
         ImageFilter.UnsharpMask(radius=1.2, percent=max(40, int(60 + 90 * strength)), threshold=3)
     )
 
@@ -624,6 +679,9 @@ def _render_refinement_pass(
             "job_id": job.id,
             "source_artifact_id": source_artifact_id,
             "refine_strength": round(strength, 2),
+            "palette_preset": palette_preset,
+            "lighting_profile": lighting_profile,
+            "harmonization_strength": round(harmonization_strength, 2),
             "seam_reduction": "gaussian_blend_unsharp",
         },
     )
@@ -740,7 +798,12 @@ def process_one_job() -> bool:
             composite_png, width, height, metadata_json = _render_refinement_pass(db=db, job=job)
             subtype = "REFINED"
             _append_job_log(
-                job, f"Refinement pass applied at strength {metadata_json.get('refine_strength')}"
+                job,
+                "Refinement pass applied at strength "
+                f"{metadata_json.get('refine_strength')} "
+                f"(palette={metadata_json.get('palette_preset')}, "
+                f"lighting={metadata_json.get('lighting_profile')}, "
+                f"harmonization={metadata_json.get('harmonization_strength')})",
             )
         else:
             (

@@ -95,6 +95,13 @@ def test_create_job_includes_compiled_prompt_metadata(db_client: TestClient) -> 
                 "strength": 1.0,
             }
         ],
+        "settings": {
+            "defaults": {
+                "palette_preset": "vibrant_pop",
+                "lighting_profile": "golden_hour",
+                "harmonization_strength": 0.65,
+            }
+        },
     }
 
     response = db_client.post(
@@ -116,6 +123,8 @@ def test_create_job_includes_compiled_prompt_metadata(db_client: TestClient) -> 
     assert "traveler" in metadata["compiled_prompt"].lower()
     assert "left_of" in " ".join(metadata["relation_hints"]).lower()
     assert "blurry" in metadata["compiled_negative_prompt"].lower()
+    assert "palette vibrant_pop" in metadata["compiled_prompt"].lower()
+    assert "lighting golden_hour" in metadata["compiled_prompt"].lower()
 
 
 def test_create_scene_level_sketch_job_uses_overarching_prompt(db_client: TestClient) -> None:

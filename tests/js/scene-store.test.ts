@@ -15,6 +15,9 @@ import {
   setZoneObjectInclusionCommand,
   setZoneSelectionModeCommand,
   updateZoneCommand,
+  setHarmonizationStrengthCommand,
+  setLightingProfileCommand,
+  setPalettePresetCommand,
   setRefineStrengthCommand,
   scaleObjectCommand,
   setObjectNegativePromptCommand,
@@ -357,12 +360,27 @@ describe("scene store reducer", () => {
       type: "EXECUTE_COMMAND",
       command: setRefineStrengthCommand(0.45),
     });
+    state = sceneStoreReducer(state, {
+      type: "EXECUTE_COMMAND",
+      command: setPalettePresetCommand("vibrant_pop"),
+    });
+    state = sceneStoreReducer(state, {
+      type: "EXECUTE_COMMAND",
+      command: setLightingProfileCommand("golden_hour"),
+    });
+    state = sceneStoreReducer(state, {
+      type: "EXECUTE_COMMAND",
+      command: setHarmonizationStrengthCommand(0.7),
+    });
 
     expect(state.sceneSpec.zones).toHaveLength(2);
     expect(state.sceneSpec.zones[0]?.shape.type).toBe("rect");
     expect(state.sceneSpec.zones[1]?.shape.type).toBe("lasso");
     expect(state.sceneSpec.zones[0]?.included_object_ids.length).toBe(1);
     expect(state.sceneSpec.settings.defaults.refine_strength).toBe(0.45);
+    expect(state.sceneSpec.settings.defaults.palette_preset).toBe("vibrant_pop");
+    expect(state.sceneSpec.settings.defaults.lighting_profile).toBe("golden_hour");
+    expect(state.sceneSpec.settings.defaults.harmonization_strength).toBe(0.7);
   });
 
   it("supports object rename, duplicate, and delete lifecycle", () => {

@@ -46,6 +46,9 @@ import {
   removeObjectCommand,
   renameObjectCommand,
   rotateObjectCommand,
+  setHarmonizationStrengthCommand,
+  setLightingProfileCommand,
+  setPalettePresetCommand,
   setRefineStrengthCommand,
   scaleObjectCommand,
   setNegativePromptCommand,
@@ -86,6 +89,21 @@ const OBJECT_PRESETS = [
     width: 120,
     height: 120,
   },
+] as const;
+
+const PALETTE_PRESETS = [
+  { value: "balanced_warm", label: "Balanced Warm" },
+  { value: "vibrant_pop", label: "Vibrant Pop" },
+  { value: "muted_cinematic", label: "Muted Cinematic" },
+  { value: "pastel_soft", label: "Pastel Soft" },
+  { value: "nocturne_cool", label: "Nocturne Cool" },
+] as const;
+
+const LIGHTING_PROFILES = [
+  { value: "soft_indoor", label: "Soft Indoor" },
+  { value: "golden_hour", label: "Golden Hour" },
+  { value: "studio_even", label: "Studio Even" },
+  { value: "night_neon", label: "Night Neon" },
 ] as const;
 
 function createObjectId() {
@@ -518,6 +536,9 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
   };
 
   const refineStrength = sceneSpec.settings.defaults.refine_strength ?? 0.25;
+  const palettePreset = sceneSpec.settings.defaults.palette_preset ?? "balanced_warm";
+  const lightingProfile = sceneSpec.settings.defaults.lighting_profile ?? "soft_indoor";
+  const harmonizationStrength = sceneSpec.settings.defaults.harmonization_strength ?? 0.6;
 
   const addObject = () => {
     if (!objectLayer) {
@@ -1182,6 +1203,50 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
           />
           <section className="generation-settings">
             <h3>Generation Settings</h3>
+            <label className="field-label" htmlFor="palette-preset">
+              Palette Preset
+            </label>
+            <select
+              id="palette-preset"
+              className="prompt-select"
+              value={palettePreset}
+              onChange={(event) => executeCommand(setPalettePresetCommand(event.target.value))}
+            >
+              {PALETTE_PRESETS.map((preset) => (
+                <option key={preset.value} value={preset.value}>
+                  {preset.label}
+                </option>
+              ))}
+            </select>
+            <label className="field-label" htmlFor="lighting-profile">
+              Lighting Profile
+            </label>
+            <select
+              id="lighting-profile"
+              className="prompt-select"
+              value={lightingProfile}
+              onChange={(event) => executeCommand(setLightingProfileCommand(event.target.value))}
+            >
+              {LIGHTING_PROFILES.map((profile) => (
+                <option key={profile.value} value={profile.value}>
+                  {profile.label}
+                </option>
+              ))}
+            </select>
+            <label className="field-label" htmlFor="harmonization-strength">
+              Harmonization Strength: {harmonizationStrength.toFixed(2)}
+            </label>
+            <input
+              id="harmonization-strength"
+              type="range"
+              min={0}
+              max={1}
+              step={0.05}
+              value={harmonizationStrength}
+              onChange={(event) =>
+                executeCommand(setHarmonizationStrengthCommand(Number(event.target.value)))
+              }
+            />
             <label className="field-label" htmlFor="refine-strength">
               Refine Strength: {refineStrength.toFixed(2)}
             </label>

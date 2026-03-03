@@ -148,6 +148,9 @@ export interface SceneSpec {
       steps: number;
       cfg_scale: number;
       refine_strength: number;
+      palette_preset: string;
+      lighting_profile: string;
+      harmonization_strength: number;
     };
     models: {
       sketch_adapter: string;
@@ -192,6 +195,9 @@ export function createEmptySceneSpec(sceneId: string, title: string): SceneSpec 
         steps: 30,
         cfg_scale: 7,
         refine_strength: 0.25,
+        palette_preset: "balanced_warm",
+        lighting_profile: "soft_indoor",
+        harmonization_strength: 0.6,
       },
       models: {
         sketch_adapter: "fake_sketch_v1",
