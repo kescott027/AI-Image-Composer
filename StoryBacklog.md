@@ -112,7 +112,7 @@ Basic layout: left panel / canvas / right panel.
 
 ---
 
-### 10. [NOT STARTED] Implement SceneSpec State Store and Undo/Redo
+### 10. [DONE] Implement SceneSpec State Store and Undo/Redo
 **Deliverable:**  
 Frontend state management:
 - Canonical SceneSpec object
