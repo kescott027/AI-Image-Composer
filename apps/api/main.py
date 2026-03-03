@@ -1,3 +1,5 @@
+import hashlib
+import json
 from datetime import UTC
 from datetime import datetime
 from uuid import uuid4
@@ -24,6 +26,8 @@ from apps.api.models.crud import SceneCreate
 from apps.api.models.crud import SceneRead
 from apps.api.models.crud import SceneVersionCreateResponse
 from apps.api.models.crud import SceneVersionRead
+from apps.api.models.jobs import JobCreate
+from apps.api.models.jobs import JobRead
 from apps.api.models.scenespec import SceneSpec
 from apps.api.services.artifact_store import LocalArtifactStore
 
@@ -72,6 +76,24 @@ def _scene_version_read(scene_version: db_models.SceneVersion) -> SceneVersionRe
     )
 
 
+def _job_read(job: db_models.Job) -> JobRead:
+    return JobRead(
+        id=job.id,
+        scene_id=job.scene_id,
+        job_type=job.job_type,
+        status=job.status,
+        priority=job.priority,
+        input_hash=job.input_hash,
+        input=job.input_json or {},
+        output_artifact_ids=job.output_artifact_ids or [],
+        logs=job.logs_json or [],
+        error=job.error,
+        started_at=_iso(job.started_at),
+        finished_at=_iso(job.finished_at),
+        created_at=_iso(job.created_at),
+    )
+
+
 def _get_scene_or_404(db: Session, scene_id: str) -> db_models.Scene:
     scene = db.get(db_models.Scene, scene_id)
     if scene is None:
@@ -109,6 +131,12 @@ def _store_scene_version(db: Session, scene_id: str, payload: dict) -> db_models
     )
     db.add(scene_version)
     return scene_version
+
+
+def _job_input_hash(scene_id: str, job_type: str, payload: dict[str, object]) -> str:
+    normalized_payload = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+    digest = hashlib.sha256(f"{scene_id}:{job_type}:{normalized_payload}".encode("utf-8")).hexdigest()
+    return f"sha256:{digest}"
 
 
 @app.get("/health")
@@ -280,6 +308,52 @@ def get_scene_version(
         raise HTTPException(status_code=404, detail="Scene version not found")
 
     return SceneSpec.model_validate(version.scene_spec_json)
+
+
+@app.post("/jobs", response_model=JobRead, tags=["jobs"])
+def create_job(payload: JobCreate, db: Session = Depends(get_db_session)) -> JobRead:
+    _get_scene_or_404(db, payload.scene_id)
+
+    job = db_models.Job(
+        id=_generate_id("job"),
+        scene_id=payload.scene_id,
+        job_type=payload.job_type.value,
+        status="QUEUED",
+        priority=payload.priority,
+        input_hash=_job_input_hash(payload.scene_id, payload.job_type.value, payload.input),
+        input_json=payload.input,
+        output_artifact_ids=[],
+        logs_json=[],
+    )
+    db.add(job)
+    db.commit()
+    db.refresh(job)
+    return _job_read(job)
+
+
+@app.get("/jobs", response_model=list[JobRead], tags=["jobs"])
+def list_jobs(
+    scene_id: str | None = Query(default=None),
+    status: str | None = Query(default=None),
+    db: Session = Depends(get_db_session),
+) -> list[JobRead]:
+    stmt = select(db_models.Job)
+    if scene_id is not None:
+        stmt = stmt.where(db_models.Job.scene_id == scene_id)
+    if status is not None:
+        stmt = stmt.where(db_models.Job.status == status)
+    stmt = stmt.order_by(desc(db_models.Job.created_at))
+
+    jobs = db.execute(stmt).scalars().all()
+    return [_job_read(job) for job in jobs]
+
+
+@app.get("/jobs/{job_id}", response_model=JobRead, tags=["jobs"])
+def get_job(job_id: str, db: Session = Depends(get_db_session)) -> JobRead:
+    job = db.get(db_models.Job, job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return _job_read(job)
 
 
 @app.post("/artifacts/upload", response_model=ArtifactRecord, tags=["artifacts"])

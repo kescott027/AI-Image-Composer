@@ -13,7 +13,7 @@
     "build:web": "pnpm --filter @ai-image-composer/web build",
     "preview:web": "pnpm --filter @ai-image-composer/web preview",
     "dev:api": "uv run uvicorn apps.api.main:app --reload --port 8000",
-    "dev:worker": "uv run python apps/worker/worker.py --interval 5",
+    "dev:worker": "uv run python apps/worker/worker.py --poll-jobs --interval 5",
     "openapi:export": "./scripts/export-openapi.sh",
     "db:up": "./scripts/db-up.sh",
     "db:down": "./scripts/db-down.sh",

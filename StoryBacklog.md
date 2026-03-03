@@ -77,7 +77,7 @@ API endpoints:
 
 ---
 
-### 7. [IN PROGRESS] Implement Job System Scaffolding (No ML Yet)
+### 7. [DONE] Implement Job System Scaffolding (No ML Yet)
 **Deliverable:**  
 - Create job endpoint
 - Poll job status endpoint

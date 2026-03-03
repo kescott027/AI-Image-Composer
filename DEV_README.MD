@@ -70,6 +70,8 @@ pnpm run dev:worker
 pnpm run dev:web
 ```
 
+`dev:worker` runs in polling mode and processes queued jobs.
+
 Export API OpenAPI schema:
 
 ```bash

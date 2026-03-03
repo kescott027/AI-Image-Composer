@@ -24,7 +24,7 @@ db-downgrade: ## Roll back one Alembic migration revision
 dev-api: ## Run FastAPI development server
 	pnpm run dev:api
 
-dev-worker: ## Run worker heartbeat loop
+dev-worker: ## Run worker in polling mode to process queued jobs
 	pnpm run dev:worker
 
 dev-web: ## Run web development server
