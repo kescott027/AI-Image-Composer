@@ -1,12 +1,13 @@
 import type { JobType, SceneSpec } from "@ai-image-composer/shared";
 
 export type SupportedJobType = Extract<JobType, "SKETCH" | "OBJECT_RENDER" | "FINAL_COMPOSITE">;
+export type JobStatus = "QUEUED" | "RUNNING" | "SUCCEEDED" | "FAILED" | "CANCELED";
 
 export interface JobRead {
   id: string;
   scene_id: string;
   job_type: JobType;
-  status: "QUEUED" | "RUNNING" | "SUCCEEDED" | "FAILED" | "CANCELED";
+  status: JobStatus;
   priority: number;
   input_hash?: string | null;
   input: Record<string, unknown>;
@@ -25,8 +26,20 @@ interface CreateJobRequest {
   input?: Record<string, unknown>;
 }
 
+interface ListJobsRequest {
+  sceneId?: string;
+  status?: JobStatus;
+}
+
 interface ApiErrorPayload {
   detail?: string;
+}
+
+function extractApiErrorMessage(defaultMessage: string, payload: ApiErrorPayload): string {
+  if (typeof payload.detail === "string" && payload.detail.length > 0) {
+    return payload.detail;
+  }
+  return defaultMessage;
 }
 
 export async function createJob(request: CreateJobRequest): Promise<JobRead> {
@@ -47,9 +60,7 @@ export async function createJob(request: CreateJobRequest): Promise<JobRead> {
     let detail = `Failed to queue ${request.job_type} job`;
     try {
       const payload = (await response.json()) as ApiErrorPayload;
-      if (typeof payload.detail === "string" && payload.detail.length > 0) {
-        detail = payload.detail;
-      }
+      detail = extractApiErrorMessage(detail, payload);
     } catch {
       // Ignore JSON parsing errors and return the generic message.
     }
@@ -57,6 +68,31 @@ export async function createJob(request: CreateJobRequest): Promise<JobRead> {
   }
 
   return (await response.json()) as JobRead;
+}
+
+export async function listJobs(request: ListJobsRequest): Promise<JobRead[]> {
+  const query = new URLSearchParams();
+  if (request.sceneId) {
+    query.set("scene_id", request.sceneId);
+  }
+  if (request.status) {
+    query.set("status", request.status);
+  }
+  const suffix = query.toString();
+  const response = await fetch(`/api/jobs${suffix ? `?${suffix}` : ""}`);
+
+  if (!response.ok) {
+    let detail = "Failed to load jobs";
+    try {
+      const payload = (await response.json()) as ApiErrorPayload;
+      detail = extractApiErrorMessage(detail, payload);
+    } catch {
+      // Ignore JSON parsing errors and return the generic message.
+    }
+    throw new Error(detail);
+  }
+
+  return (await response.json()) as JobRead[];
 }
 
 export function buildGenerationInput(

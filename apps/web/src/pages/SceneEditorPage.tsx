@@ -7,6 +7,7 @@ import {
   type SupportedJobType,
 } from "../api/jobs";
 import { LayersPanel } from "../components/LayersPanel";
+import { JobStatusPanel } from "../components/JobStatusPanel";
 import { ObjectPromptEditor, type ObjectPromptEditorValues } from "../components/ObjectPromptEditor";
 import {
   type OverarchingPromptEditorValues,
@@ -243,6 +244,7 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
             </div>
             <p className="generation-status">{jobFeedback}</p>
           </section>
+          <JobStatusPanel sceneId={sceneSpec.scene.id} />
           <ul className="history-list">
             {commandLog.slice(-6).reverse().map((entry, index) => (
               <li key={`${entry}-${index}`}>{entry}</li>

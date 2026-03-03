@@ -175,7 +175,7 @@ UI calls backend to create jobs.
 
 ---
 
-### 17. [NOT STARTED] Implement Job Status UI
+### 17. [DONE] Implement Job Status UI
 **Deliverable:**  
 Job queue panel:
 - Active jobs

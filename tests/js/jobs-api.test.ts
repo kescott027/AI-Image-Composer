@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createEmptySceneSpec } from "../../packages/shared/src/scenespec";
-import { buildGenerationInput, createJob } from "../../apps/web/src/api/jobs";
+import { buildGenerationInput, createJob, listJobs } from "../../apps/web/src/api/jobs";
 
 describe("jobs api client", () => {
   afterEach(() => {
@@ -63,6 +63,34 @@ describe("jobs api client", () => {
         job_type: "FINAL_COMPOSITE",
       }),
     ).rejects.toThrow("Scene not found");
+  });
+
+  it("lists jobs with scene and status filters", async () => {
+    const jobs = [
+      {
+        id: "job_1",
+        scene_id: "scene_123",
+        job_type: "SKETCH",
+        status: "RUNNING",
+        priority: 0,
+        input_hash: null,
+        input: {},
+        output_artifact_ids: [],
+        logs: ["Job claimed by worker"],
+      },
+    ];
+
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response(JSON.stringify(jobs), { status: 200 }));
+
+    const result = await listJobs({ sceneId: "scene_123", status: "RUNNING" });
+
+    expect(result).toHaveLength(1);
+    expect(result[0]?.id).toBe("job_1");
+
+    const [url] = fetchMock.mock.calls[0] ?? [];
+    expect(url).toBe("/api/jobs?scene_id=scene_123&status=RUNNING");
   });
 
   it("builds generation input with scene snapshot metadata", () => {

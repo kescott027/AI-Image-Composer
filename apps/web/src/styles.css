@@ -375,6 +375,94 @@ p {
   font-size: 0.74rem;
 }
 
+.job-status-panel {
+  margin-top: 0.95rem;
+  border-top: 1px dashed var(--line);
+  padding-top: 0.75rem;
+}
+
+.job-status-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.job-status-panel h3 {
+  margin: 0 0 0.3rem;
+  font-size: 0.92rem;
+}
+
+.job-status-panel h4 {
+  margin: 0.7rem 0 0.3rem;
+  font-size: 0.84rem;
+}
+
+.job-status-meta {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.72rem;
+}
+
+.job-list {
+  list-style: none;
+  margin: 0.45rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.job-item {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0.5rem 0.6rem;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.job-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.job-main span {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.72rem;
+  color: var(--ink-soft);
+}
+
+.job-empty {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.74rem;
+}
+
+.job-error {
+  color: #9e2f2f;
+}
+
+.job-artifacts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-top: 0.4rem;
+}
+
+.job-artifacts .mini-button {
+  margin-left: 0;
+  text-decoration: none;
+}
+
+.job-logs {
+  margin-top: 0.45rem;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.72rem;
+}
+
+.job-logs ul {
+  margin: 0.35rem 0 0;
+  padding-left: 1rem;
+}
+
 .tool-row {
   display: flex;
   gap: 0.32rem;
