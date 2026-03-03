@@ -228,6 +228,19 @@ Foreground mode remains available when needed:
 aiic run
 ```
 
+Full containerized stack:
+
+```bash
+make full-build
+make full-up
+docker compose -f docker-compose.full.yml run --rm api uv run alembic -c apps/api/alembic.ini upgrade head
+```
+
+Runbooks:
+
+- `docs/FULL_CONTAINERIZATION.MD`
+- `docs/SUPPLY_CHAIN_VERIFICATION.MD`
+
 Directed 3-layer compose flow (Release 0.5 in progress):
 
 1. Create project + scene with overarching prompt from Projects/Scenes pages.

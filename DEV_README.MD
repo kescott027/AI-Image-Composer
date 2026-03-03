@@ -114,6 +114,14 @@ pnpm run dev:worker
 pnpm run dev:web
 ```
 
+Run full containerized stack:
+
+```bash
+make full-build
+make full-up
+docker compose -f docker-compose.full.yml run --rm api uv run alembic -c apps/api/alembic.ini upgrade head
+```
+
 `dev:worker` runs in polling mode and processes queued jobs.
 Supported fake job adapters currently generate placeholder PNGs for:
 
@@ -200,6 +208,9 @@ Reference: [Makefile](/Users/kylescott/git/AI-Image-Composer/Makefile)
 - `make db-down`
 - `make db-migrate`
 - `make db-downgrade`
+- `make full-build`
+- `make full-up`
+- `make full-down`
 - `make backup-create`
 - `make backup-restore BACKUP=/abs/path/to/aiic-backup.tar.gz`
 - `make lint`
