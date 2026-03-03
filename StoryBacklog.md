@@ -106,7 +106,7 @@ Goal: security-first hardening, architecture hardening, reproducibility, observa
 3. **Story 87** `[DONE]` Rate Limiting & Abuse Protection
 4. **Story 90** `[DONE]` Compliance-Ready Logging
 5. **Story 105** `[DONE]` Secrets Management and Key Rotation Baseline
-6. **Story 106** `[NOT STARTED]` Dependency/Container Hardening (SBOM + Signed Images)
+6. **Story 106** `[DONE]` Dependency/Container Hardening (SBOM + Signed Images)
 7. **Story 58** `[DONE]` Implement Artifact Integrity Verification
 8. **Story 60** `[DONE]` Implement Immutable Artifact Storage Mode
 9. **Story 89** `[DONE]` Automated Backup & Restore

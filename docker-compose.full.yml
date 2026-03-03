@@ -1,0 +1,80 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: ai-image-composer-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ai_image_composer
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "${AIIC_POSTGRES_PORT:-55432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ai_image_composer"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    image: ai-image-composer-api:local
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+psycopg://postgres:postgres@postgres:5432/ai_image_composer
+      ARTIFACTS_ROOT: /app/.artifacts
+      AIIC_LOG_LEVEL: ${AIIC_LOG_LEVEL:-INFO}
+      AIIC_RATE_LIMIT_ENABLED: ${AIIC_RATE_LIMIT_ENABLED:-true}
+      AIIC_RATE_LIMIT_WINDOW_SECONDS: ${AIIC_RATE_LIMIT_WINDOW_SECONDS:-60}
+      AIIC_RATE_LIMIT_MAX_REQUESTS: ${AIIC_RATE_LIMIT_MAX_REQUESTS:-120}
+      AIIC_RATE_LIMIT_EXEMPT_PATHS: ${AIIC_RATE_LIMIT_EXEMPT_PATHS:-/health}
+      AIIC_ENV: ${AIIC_ENV:-development}
+      AIIC_APP_SECRET_KEY: ${AIIC_APP_SECRET_KEY:-}
+      AIIC_APP_SECRET_KEY_VERSION: ${AIIC_APP_SECRET_KEY_VERSION:-unset}
+      AIIC_PROVIDER_KEYSET_VERSION: ${AIIC_PROVIDER_KEYSET_VERSION:-unset}
+      AIIC_ARTIFACT_IMMUTABLE_MODE: ${AIIC_ARTIFACT_IMMUTABLE_MODE:-false}
+    ports:
+      - "8000:8000"
+    volumes:
+      - artifacts_data:/app/.artifacts
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: .
+      dockerfile: apps/worker/Dockerfile
+    image: ai-image-composer-worker:local
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+psycopg://postgres:postgres@postgres:5432/ai_image_composer
+      ARTIFACTS_ROOT: /app/.artifacts
+      AIIC_LOG_LEVEL: ${AIIC_LOG_LEVEL:-INFO}
+      AIIC_ARTIFACT_IMMUTABLE_MODE: ${AIIC_ARTIFACT_IMMUTABLE_MODE:-false}
+    volumes:
+      - artifacts_data:/app/.artifacts
+    depends_on:
+      postgres:
+        condition: service_healthy
+      api:
+        condition: service_started
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    image: ai-image-composer-web:local
+    restart: unless-stopped
+    ports:
+      - "5173:80"
+    depends_on:
+      api:
+        condition: service_started
+
+volumes:
+  pgdata:
+  artifacts_data:

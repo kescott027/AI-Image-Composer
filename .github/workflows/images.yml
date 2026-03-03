@@ -1,0 +1,110 @@
+name: Build and Sign Images
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - "*"
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+  attestations: write
+
+jobs:
+  images:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: api
+            dockerfile: apps/api/Dockerfile
+          - service: worker
+            dockerfile: apps/worker/Dockerfile
+          - service: web
+            dockerfile: apps/web/Dockerfile
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set repository owner (lowercase)
+        id: repo
+        run: echo "owner=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_OUTPUT"
+
+      - name: Set image reference
+        id: image
+        run: |
+          echo "tag=ghcr.io/${{ steps.repo.outputs.owner }}/ai-image-composer-${{ matrix.service }}:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push image
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          push: true
+          tags: ${{ steps.image.outputs.tag }}
+
+      - name: Install Syft
+        uses: anchore/sbom-action/download-syft@v0
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Generate SBOM (SPDX JSON)
+        id: sbom
+        run: |
+          image_ref="${{ steps.image.outputs.tag }}@${{ steps.build.outputs.digest }}"
+          sbom_file="sbom-${{ matrix.service }}.spdx.json"
+          syft "$image_ref" -o "spdx-json=$sbom_file"
+          echo "file=$sbom_file" >> "$GITHUB_OUTPUT"
+          echo "ref=$image_ref" >> "$GITHUB_OUTPUT"
+
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-${{ matrix.service }}
+          path: ${{ steps.sbom.outputs.file }}
+
+      - name: Sign image (keyless)
+        run: |
+          cosign sign --yes "${{ steps.sbom.outputs.ref }}"
+
+      - name: Attach SBOM attestation
+        run: |
+          cosign attest --yes \
+            --predicate "${{ steps.sbom.outputs.file }}" \
+            --type spdxjson \
+            "${{ steps.sbom.outputs.ref }}"
+
+      - name: Append verification commands
+        run: |
+          image_ref="${{ steps.sbom.outputs.ref }}"
+          identity_pattern="^https://github.com/${{ github.repository }}/.github/workflows/images.yml@refs/(heads/main|tags/.+)$"
+          {
+            echo "### $image_ref"
+            echo '```bash'
+            echo "cosign verify \"$image_ref\" \\"
+            echo "  --certificate-identity-regexp \"$identity_pattern\" \\"
+            echo "  --certificate-oidc-issuer \"https://token.actions.githubusercontent.com\""
+            echo
+            echo "cosign verify-attestation \"$image_ref\" \\"
+            echo "  --type spdxjson \\"
+            echo "  --certificate-identity-regexp \"$identity_pattern\" \\"
+            echo "  --certificate-oidc-issuer \"https://token.actions.githubusercontent.com\""
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
