@@ -405,3 +405,11 @@ Implement frontend that edits SceneSpec and calls those endpoints.
 Add a “fake” model adapter that returns dummy images, then swap to real models.
 
 If you want, I can write you a concrete folder structure (monorepo layout), the initial SceneSpec TypeScript types + Pydantic models, and a minimal set of FastAPI routes that match your phases. That’s usually the fastest thing to drop into Codex and start iterating.
+
+---
+
+CURRENT RELEASE STATUS (2026-03-03)
+
+- Release 0 (MVP): complete.
+- Sign-off document: `docs/RELEASE_0_SIGNOFF.MD`.
+- Release 1 (Production Ready): next focus area with security-first hardening before production use.

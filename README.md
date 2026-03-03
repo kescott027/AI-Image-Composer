@@ -6,6 +6,12 @@ A structured, scene-graph driven image generation system that moves beyond simpl
 
 The core idea is simple: instead of generating a full image from a single prompt, we build a structured scene specification (SceneSpec) and progressively generate wireframes, objects, and composites using controlled relationships and layout logic.
 
+Release Status
+
+- Release 0 (MVP): Complete
+- Release 0 sign-off: `docs/RELEASE_0_SIGNOFF.MD`
+- Next: Release 1 security hardening and production readiness
+
 Vision
 
 Traditional text-to-image tools generate monolithic results. This project introduces:
@@ -209,6 +215,10 @@ make iur-smoke
 Full scene-to-render happy-path validation (includes worker job processing):
 
 make iur-happy-path
+
+Release 0 sign-off artifact:
+
+docs/RELEASE_0_SIGNOFF.MD
 
 Generation Flow
 

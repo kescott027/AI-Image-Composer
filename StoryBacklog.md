@@ -12,7 +12,7 @@ Status legend:
 
 Goal: usable scene composer with layered editing, generation flow, persistence, and basic constraints.
 
-1. **Story 1** `[IN PROGRESS]` Define Product Framing and Milestones
+1. **Story 1** `[DONE]` Define Product Framing and Milestones
 2. **Story 2** `[DONE]` Create Monorepo Skeleton (Frontend + Backend + Workers)
 3. **Story 3** `[DONE]` Define Canonical SceneSpec and API Contracts
 4. **Story 4** `[DONE]` Implement Persistent Storage Foundation (Postgres + Migrations)
@@ -155,7 +155,7 @@ Goal: advanced intelligence, commercialization, and long-horizon platform resili
 
 ## Release Gate Notes
 
-- **Release 0** is functionally complete except Story 1 closure and final milestone document sign-off.
+- **Release 0** is complete. Sign-off recorded in `docs/RELEASE_0_SIGNOFF.MD`.
 - **Release 1** must pass security hardening and architecture hardening gates before production traffic.
 - **Release 2** focuses on stable extensibility and collaboration readiness.
 - **Release n** is long-horizon growth and enterprise expansion.
