@@ -209,20 +209,45 @@ aiic
 
 `make install` checks prerequisites, installs missing dependencies when possible, installs the `aiic` shell function in `~/.zshrc` and/or `~/.bashrc`, and prepares the repo.
 
-`aiic` launches API + worker + web with a watchdog. Press `Ctrl+C` to stop and shut down gracefully.
+`aiic` now starts a background manager by default, launches API + worker + web, and opens the web UI when possible.
 
-1. Install dependencies and hooks
+Operational commands:
+
+```bash
+aiic status
+aiic logs manager
+aiic logs worker -f
+aiic stop
+```
+
+If a service exits repeatedly, the manager now applies restart backoff and then marks that service as a crash-loop instead of restarting forever. Check `aiic status` and inspect logs with `aiic logs <service>`.
+
+Foreground mode remains available when needed:
+
+```bash
+aiic run
+```
+
+Directed 3-layer compose flow (Release 0.5 in progress):
+
+1. Create project + scene with overarching prompt from Projects/Scenes pages.
+2. In Scene Editor, click `Generate Blocking Layer`.
+3. Add preset objects (`Person`, `Table`, `Birthday Cake`), generate wireframes, and use variant picker.
+4. Drag objects into place on canvas and click `Anchor`.
+5. Run `Render Full Scene + Refine` for ordered object renders + composite + refine pass.
+
+6. Install dependencies and hooks
    make setup
-2. Start local Postgres
+7. Start local Postgres
    make db-up
-3. Apply DB migrations
+8. Apply DB migrations
    make db-migrate
-4. Start API
+9. Start API
    pnpm run dev:api
-5. Start Worker
-   pnpm run dev:worker
-6. Start Frontend
-   pnpm run dev:web
+10. Start Worker
+    pnpm run dev:worker
+11. Start Frontend
+    pnpm run dev:web
 
 IUR smoke validation:
 

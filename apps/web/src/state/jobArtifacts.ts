@@ -50,6 +50,71 @@ export function mapLatestSketchArtifactsByObjectId(jobs: JobRead[]): Record<stri
   return mapLatestArtifactsByObjectId(jobs, "SKETCH");
 }
 
+export function mapLatestBlockingSketchArtifactId(jobs: JobRead[]): string | null {
+  let selectedArtifactId: string | null = null;
+  let selectedCreatedAtMs = -1;
+
+  jobs.forEach((job) => {
+    if (job.job_type !== "SKETCH" || job.status !== "SUCCEEDED") {
+      return;
+    }
+    const targetObjectId = job.input.target_object_id;
+    if (typeof targetObjectId === "string" && targetObjectId.length > 0) {
+      return;
+    }
+
+    const artifactId = job.output_artifact_ids[0];
+    if (!artifactId) {
+      return;
+    }
+    const createdAtMs = job.created_at ? Date.parse(job.created_at) : 0;
+    if (createdAtMs >= selectedCreatedAtMs) {
+      selectedArtifactId = artifactId;
+      selectedCreatedAtMs = createdAtMs;
+    }
+  });
+
+  return selectedArtifactId;
+}
+
+export function mapSketchArtifactCandidatesByObjectId(
+  jobs: JobRead[],
+  perObjectLimit = 6,
+): Record<string, string[]> {
+  const limit = Math.max(1, perObjectLimit);
+  const entries = new Map<string, Array<{ artifactId: string; createdAtMs: number }>>();
+
+  jobs.forEach((job) => {
+    if (job.job_type !== "SKETCH" || job.status !== "SUCCEEDED") {
+      return;
+    }
+    const targetObjectId = job.input.target_object_id;
+    if (typeof targetObjectId !== "string" || targetObjectId.length === 0) {
+      return;
+    }
+    const artifactId = job.output_artifact_ids[0];
+    if (!artifactId) {
+      return;
+    }
+
+    const current = entries.get(targetObjectId) ?? [];
+    current.push({
+      artifactId,
+      createdAtMs: job.created_at ? Date.parse(job.created_at) : 0,
+    });
+    entries.set(targetObjectId, current);
+  });
+
+  const output: Record<string, string[]> = {};
+  entries.forEach((candidates, objectId) => {
+    output[objectId] = candidates
+      .sort((left, right) => right.createdAtMs - left.createdAtMs)
+      .slice(0, limit)
+      .map((candidate) => candidate.artifactId);
+  });
+  return output;
+}
+
 export function mapLatestObjectRenderArtifactsByObjectId(jobs: JobRead[]): Record<string, string> {
   return mapLatestArtifactsByObjectId(jobs, "OBJECT_RENDER");
 }

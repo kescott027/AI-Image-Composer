@@ -11,6 +11,8 @@ export function SceneListPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [feedback, setFeedback] = useState("Loading scenes...");
   const [newSceneTitle, setNewSceneTitle] = useState("Untitled Scene");
+  const [newScenePrompt, setNewScenePrompt] = useState("");
+  const [newSceneStylePreset, setNewSceneStylePreset] = useState("cinematic");
 
   const loadScenes = async () => {
     setIsLoading(true);
@@ -38,6 +40,8 @@ export function SceneListPage() {
       const created = await createScene({
         project_id: projectId,
         title: newSceneTitle.trim(),
+        overarching_prompt: newScenePrompt.trim(),
+        style_preset: newSceneStylePreset,
       });
       setScenes((current) => [created, ...current]);
       setFeedback(`Created scene ${created.title}.`);
@@ -72,9 +76,36 @@ export function SceneListPage() {
           onChange={(event) => setNewSceneTitle(event.target.value)}
           placeholder="Scene title"
         />
+        <label className="field-label" htmlFor="new-scene-prompt">
+          Overarching Prompt
+        </label>
+        <textarea
+          id="new-scene-prompt"
+          className="prompt-input"
+          value={newScenePrompt}
+          onChange={(event) => setNewScenePrompt(event.target.value)}
+          placeholder="Describe the full scene mood/composition..."
+          rows={3}
+        />
+        <label className="field-label" htmlFor="new-scene-style-preset">
+          Style Preset
+        </label>
+        <select
+          id="new-scene-style-preset"
+          className="prompt-select"
+          value={newSceneStylePreset}
+          onChange={(event) => setNewSceneStylePreset(event.target.value)}
+        >
+          <option value="cinematic">cinematic</option>
+          <option value="illustration">illustration</option>
+          <option value="photoreal">photoreal</option>
+          <option value="minimal">minimal</option>
+          <option value="storybook">storybook</option>
+          <option value="default">default</option>
+        </select>
         <div className="tool-row">
           <button type="button" className="button-link" onClick={() => void createNewScene()}>
-            Create Scene
+            Create Scene + Start Compose
           </button>
           <button
             type="button"

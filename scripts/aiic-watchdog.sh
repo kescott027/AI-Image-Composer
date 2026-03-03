@@ -5,16 +5,25 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 RUN_ROOT="$REPO_ROOT/.run/aiic"
 LOG_ROOT="$RUN_ROOT/logs"
+MANAGER_PID_FILE="$RUN_ROOT/manager.pid"
+MANAGER_LOG_FILE="$LOG_ROOT/manager.log"
+DB_OWNER_FLAG_FILE="$RUN_ROOT/db.started_by_aiic"
+READY_FILE="$RUN_ROOT/ready"
+WEB_URL="http://localhost:5173"
+API_URL="http://localhost:8000/health"
 
 SERVICES=("api" "worker" "web")
-WATCH_INTERVAL_SECONDS=2
+WATCH_INTERVAL_SECONDS="${AIIC_WATCH_INTERVAL_SECONDS:-2}"
+RESTART_WINDOW_SECONDS="${AIIC_RESTART_WINDOW_SECONDS:-120}"
+MAX_RESTARTS_PER_WINDOW="${AIIC_MAX_RESTARTS_PER_WINDOW:-8}"
+MAX_RESTART_DELAY_SECONDS="${AIIC_MAX_RESTART_DELAY_SECONDS:-30}"
 DB_STARTED_BY_SCRIPT=0
 
-log() {
+cli_log() {
   echo "[aiic] $*"
 }
 
-warn() {
+cli_warn() {
   echo "[aiic] WARNING: $*" >&2
 }
 
@@ -23,9 +32,134 @@ die() {
   exit 1
 }
 
+manager_log() {
+  mkdir -p "$LOG_ROOT"
+  printf '%s [aiic] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*" >>"$MANAGER_LOG_FILE"
+}
+
+ensure_runtime_dirs() {
+  mkdir -p "$RUN_ROOT" "$LOG_ROOT"
+}
+
+read_pid_file() {
+  local file="$1"
+  [[ -f "$file" ]] || return 1
+  local pid
+  pid="$(cat "$file" 2>/dev/null || true)"
+  [[ -n "$pid" ]] || return 1
+  echo "$pid"
+}
+
+pid_running() {
+  local pid="$1"
+  kill -0 "$pid" 2>/dev/null
+}
+
+manager_pid() {
+  read_pid_file "$MANAGER_PID_FILE" || true
+}
+
+manager_running() {
+  local pid
+  pid="$(manager_pid)"
+  [[ -n "$pid" ]] || return 1
+  pid_running "$pid"
+}
+
 service_pid_file() {
   local name="$1"
   echo "$RUN_ROOT/${name}.pid"
+}
+
+service_log_file() {
+  local name="$1"
+  echo "$LOG_ROOT/${name}.log"
+}
+
+service_restart_state_file() {
+  local name="$1"
+  echo "$RUN_ROOT/${name}.restart-state"
+}
+
+service_crashloop_flag_file() {
+  local name="$1"
+  echo "$RUN_ROOT/${name}.crashloop"
+}
+
+clear_restart_state() {
+  local name="$1"
+  rm -f "$(service_restart_state_file "$name")"
+}
+
+clear_crashloop_flag() {
+  local name="$1"
+  rm -f "$(service_crashloop_flag_file "$name")"
+}
+
+mark_crashloop() {
+  local name="$1"
+  local attempts="$2"
+  printf '%s %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$attempts" >"$(service_crashloop_flag_file "$name")"
+}
+
+service_in_crashloop() {
+  local name="$1"
+  [[ -f "$(service_crashloop_flag_file "$name")" ]]
+}
+
+service_last_log_line() {
+  local name="$1"
+  local file
+  file="$(service_log_file "$name")"
+  if [[ ! -f "$file" ]]; then
+    echo "log file missing"
+    return 0
+  fi
+  local line
+  line="$(tail -n 1 "$file" 2>/dev/null | sed 's/[[:space:]]*$//' || true)"
+  if [[ -z "$line" ]]; then
+    echo "log file empty"
+    return 0
+  fi
+  echo "$line"
+}
+
+restart_delay_seconds() {
+  local name="$1"
+  local file now previous_ts previous_count elapsed count delay
+  file="$(service_restart_state_file "$name")"
+  now="$(date +%s)"
+  previous_ts=0
+  previous_count=0
+
+  if [[ -f "$file" ]]; then
+    read -r previous_ts previous_count <"$file" || true
+  fi
+
+  elapsed=$((now - previous_ts))
+  if ((previous_ts == 0 || elapsed > RESTART_WINDOW_SECONDS)); then
+    count=1
+  else
+    count=$((previous_count + 1))
+  fi
+
+  printf '%s %s\n' "$now" "$count" >"$file"
+
+  if ((count > MAX_RESTARTS_PER_WINDOW)); then
+    echo "$count"
+    return 1
+  fi
+
+  if ((count <= 1)); then
+    echo "0"
+    return 0
+  fi
+
+  delay=$((2 ** (count - 2)))
+  if ((delay > MAX_RESTART_DELAY_SECONDS)); then
+    delay="$MAX_RESTART_DELAY_SECONDS"
+  fi
+  echo "$delay"
 }
 
 service_cmd() {
@@ -40,42 +174,63 @@ service_cmd() {
 
 is_running() {
   local name="$1"
-  local pid_file
-  pid_file="$(service_pid_file "$name")"
-  [[ -f "$pid_file" ]] || return 1
-
   local pid
-  pid="$(cat "$pid_file")"
+  pid="$(read_pid_file "$(service_pid_file "$name")" || true)"
   [[ -n "$pid" ]] || return 1
-  kill -0 "$pid" 2>/dev/null
+  pid_running "$pid"
 }
 
 start_service() {
   local name="$1"
+  local reset_restart_state="${2:-0}"
   local command
   command="$(service_cmd "$name")"
 
-  log "Starting $name ..."
-  bash -lc "cd \"$REPO_ROOT\" && $command" >"$LOG_ROOT/${name}.log" 2>&1 &
+  if is_running "$name"; then
+    manager_log "$name already running (pid=$(read_pid_file "$(service_pid_file "$name")"))."
+    return 0
+  fi
+
+  local log_file
+  log_file="$(service_log_file "$name")"
+  if [[ "$reset_restart_state" -eq 1 ]]; then
+    clear_restart_state "$name"
+    clear_crashloop_flag "$name"
+  fi
+
+  printf '\n%s [aiic] launching %s: %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$name" "$command" >>"$log_file"
+  manager_log "Starting $name ..."
+  bash -lc "cd \"$REPO_ROOT\" && $command" >>"$log_file" 2>&1 &
   local pid=$!
   echo "$pid" >"$(service_pid_file "$name")"
-  log "$name started (pid=$pid, log=$LOG_ROOT/${name}.log)"
+  manager_log "$name started (pid=$pid, log=$log_file)"
 }
 
 stop_service() {
   local name="$1"
-  local pid_file
+  local pid_file pid
   pid_file="$(service_pid_file "$name")"
-  [[ -f "$pid_file" ]] || return 0
+  pid="$(read_pid_file "$pid_file" || true)"
+  [[ -n "$pid" ]] || {
+    rm -f "$pid_file"
+    return 0
+  }
 
-  local pid
-  pid="$(cat "$pid_file")"
-  if [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null; then
-    log "Stopping $name (pid=$pid) ..."
+  if pid_running "$pid"; then
+    manager_log "Stopping $name (pid=$pid) ..."
     kill "$pid" 2>/dev/null || true
-    wait "$pid" 2>/dev/null || true
+    for _ in {1..20}; do
+      pid_running "$pid" || break
+      sleep 0.25
+    done
+    if pid_running "$pid"; then
+      manager_log "$name (pid=$pid) did not stop gracefully, sending SIGKILL."
+      kill -9 "$pid" 2>/dev/null || true
+    fi
   fi
   rm -f "$pid_file"
+  clear_restart_state "$name"
+  clear_crashloop_flag "$name"
 }
 
 ensure_prerequisites() {
@@ -87,24 +242,30 @@ ensure_prerequisites() {
 
 start_database_if_needed() {
   if (cd "$REPO_ROOT" && docker compose ps --status running postgres 2>/dev/null | grep -q postgres); then
-    DB_STARTED_BY_SCRIPT=0
-    log "Postgres already running."
+    if [[ -f "$DB_OWNER_FLAG_FILE" ]]; then
+      DB_STARTED_BY_SCRIPT=1
+      manager_log "Postgres already running (owned by aiic)."
+    else
+      DB_STARTED_BY_SCRIPT=0
+      manager_log "Postgres already running."
+    fi
   else
     DB_STARTED_BY_SCRIPT=1
-    log "Starting Postgres ..."
+    manager_log "Starting Postgres ..."
+    touch "$DB_OWNER_FLAG_FILE"
     (cd "$REPO_ROOT" && ./scripts/db-up.sh)
   fi
 
-  log "Waiting for Postgres readiness ..."
+  manager_log "Waiting for Postgres readiness ..."
   (cd "$REPO_ROOT" && ./scripts/db-wait.sh)
 
-  log "Applying migrations ..."
+  manager_log "Applying migrations ..."
   (cd "$REPO_ROOT" && ./scripts/db-migrate.sh)
 }
 
 cleanup() {
   trap - EXIT INT TERM
-  log "Shutting down aiic services ..."
+  manager_log "Shutting down aiic services ..."
 
   # Stop app processes first.
   stop_service web
@@ -112,39 +273,312 @@ cleanup() {
   stop_service api
 
   if [[ "$DB_STARTED_BY_SCRIPT" -eq 1 ]]; then
-    log "Stopping Postgres started by aiic ..."
-    (cd "$REPO_ROOT" && ./scripts/db-down.sh) || warn "Failed to stop Postgres cleanly."
+    manager_log "Stopping Postgres started by aiic ..."
+    (cd "$REPO_ROOT" && ./scripts/db-down.sh) || manager_log "WARNING: Failed to stop Postgres cleanly."
+    rm -f "$DB_OWNER_FLAG_FILE"
   fi
 
-  log "Shutdown complete."
+  rm -f "$READY_FILE"
+  rm -f "$MANAGER_PID_FILE"
+  manager_log "Shutdown complete."
 }
 
-main() {
-  ensure_prerequisites
-
-  mkdir -p "$LOG_ROOT"
-  start_database_if_needed
-
-  trap cleanup EXIT INT TERM
-
-  for service in "${SERVICES[@]}"; do
-    start_service "$service"
-  done
-
-  log "AI Image Composer running."
-  log "Web: http://localhost:5173"
-  log "API: http://localhost:8000/health"
-  log "Press Ctrl+C to stop all services."
-
+watchdog_loop() {
   while true; do
     for service in "${SERVICES[@]}"; do
       if ! is_running "$service"; then
-        warn "$service exited. Restarting ..."
+        if service_in_crashloop "$service"; then
+          continue
+        fi
+
+        local delay_or_attempts
+        local last_line
+        last_line="$(service_last_log_line "$service")"
+
+        if ! delay_or_attempts="$(restart_delay_seconds "$service")"; then
+          mark_crashloop "$service" "$delay_or_attempts"
+          manager_log "ERROR: $service entered crash-loop after $delay_or_attempts restart attempts in ${RESTART_WINDOW_SECONDS}s. Last log line: $last_line"
+          manager_log "ERROR: $service will remain stopped until manual restart. Inspect: aiic logs $service"
+          continue
+        fi
+
+        if [[ "$delay_or_attempts" -gt 0 ]]; then
+          manager_log "WARNING: $service exited. Restarting in ${delay_or_attempts}s. Last log line: $last_line"
+          sleep "$delay_or_attempts"
+        else
+          manager_log "WARNING: $service exited. Restarting immediately. Last log line: $last_line"
+        fi
         start_service "$service"
       fi
     done
     sleep "$WATCH_INTERVAL_SECONDS"
   done
+}
+
+run_foreground() {
+  ensure_prerequisites
+  ensure_runtime_dirs
+
+  if manager_running; then
+    die "aiic is already running (pid=$(manager_pid)). Use: aiic stop"
+  fi
+
+  echo "$$" >"$MANAGER_PID_FILE"
+  manager_log "Starting aiic in foreground mode."
+  start_database_if_needed
+
+  trap cleanup EXIT INT TERM
+
+  for service in "${SERVICES[@]}"; do
+    start_service "$service" 1
+  done
+
+  touch "$READY_FILE"
+  cli_log "AI Image Composer running (foreground mode)."
+  cli_log "Web: $WEB_URL"
+  cli_log "API: $API_URL"
+  cli_log "Press Ctrl+C to stop all services."
+  cli_log "Logs: $LOG_ROOT"
+
+  watchdog_loop
+}
+
+run_daemon() {
+  ensure_prerequisites
+  ensure_runtime_dirs
+
+  if manager_running; then
+    die "aiic is already running (pid=$(manager_pid))"
+  fi
+
+  echo "$$" >"$MANAGER_PID_FILE"
+  manager_log "Starting aiic daemon."
+
+  trap cleanup EXIT INT TERM
+
+  start_database_if_needed
+
+  for service in "${SERVICES[@]}"; do
+    start_service "$service" 1
+  done
+
+  touch "$READY_FILE"
+  manager_log "AI Image Composer running. Web=$WEB_URL API=$API_URL"
+  watchdog_loop
+}
+
+open_browser_window() {
+  local url="$WEB_URL"
+  case "$(uname -s)" in
+    Darwin)
+      command -v open >/dev/null 2>&1 && open "$url" >/dev/null 2>&1 || true
+      ;;
+    Linux)
+      command -v xdg-open >/dev/null 2>&1 && xdg-open "$url" >/dev/null 2>&1 || true
+      ;;
+    *)
+      :
+      ;;
+  esac
+}
+
+start_daemon() {
+  local should_open_browser="${1:-1}"
+  ensure_runtime_dirs
+  if manager_running; then
+    cli_log "AI Image Composer already running (pid=$(manager_pid))."
+    if [[ "$should_open_browser" -eq 1 ]]; then
+      open_browser_window
+    fi
+    return 0
+  fi
+
+  nohup bash "$0" __daemon >>"$MANAGER_LOG_FILE" 2>&1 &
+  local daemon_pid=$!
+
+  for _ in {1..80}; do
+    if manager_running && [[ -f "$READY_FILE" ]]; then
+      cli_log "AI Image Composer started in background."
+      cli_log "Manager PID: $(manager_pid)"
+      cli_log "Web: $WEB_URL"
+      cli_log "API: $API_URL"
+      cli_log "Logs: $LOG_ROOT"
+      if [[ "$should_open_browser" -eq 1 ]]; then
+        open_browser_window
+      fi
+      return 0
+    fi
+    if ! pid_running "$daemon_pid"; then
+      break
+    fi
+    sleep 0.25
+  done
+
+  cli_warn "aiic did not report healthy startup. Check logs:"
+  cli_warn "  $MANAGER_LOG_FILE"
+  return 1
+}
+
+stop_daemon() {
+  ensure_runtime_dirs
+
+  local pid
+  pid="$(manager_pid)"
+  if [[ -n "$pid" ]] && pid_running "$pid"; then
+    cli_log "Stopping aiic manager (pid=$pid) ..."
+    kill "$pid" 2>/dev/null || true
+    for _ in {1..40}; do
+      pid_running "$pid" || break
+      sleep 0.25
+    done
+    if pid_running "$pid"; then
+      cli_warn "Manager did not stop gracefully. Sending SIGKILL."
+      kill -9 "$pid" 2>/dev/null || true
+    fi
+  fi
+
+  # Ensure services are down, even if manager was not running.
+  for service in web worker api; do
+    stop_service "$service"
+  done
+
+  if [[ -f "$DB_OWNER_FLAG_FILE" ]]; then
+    cli_log "Stopping Postgres started by aiic ..."
+    (cd "$REPO_ROOT" && ./scripts/db-down.sh) || cli_warn "Failed to stop Postgres cleanly."
+    rm -f "$DB_OWNER_FLAG_FILE"
+  fi
+
+  rm -f "$READY_FILE"
+  rm -f "$MANAGER_PID_FILE"
+  cli_log "AI Image Composer stopped."
+}
+
+status_daemon() {
+  local overall="stopped"
+  local degraded=0
+  if manager_running; then
+    overall="running"
+    cli_log "Manager: running (pid=$(manager_pid))"
+  else
+    cli_log "Manager: stopped"
+  fi
+
+  for service in "${SERVICES[@]}"; do
+    if is_running "$service"; then
+      cli_log "Service $service: running (pid=$(read_pid_file "$(service_pid_file "$service")"))"
+      overall="running"
+    elif service_in_crashloop "$service"; then
+      cli_warn "Service $service: crash-loop (inspect with: aiic logs $service)"
+      degraded=1
+    else
+      cli_log "Service $service: stopped"
+    fi
+  done
+
+  if (cd "$REPO_ROOT" && docker compose ps --status running postgres 2>/dev/null | grep -q postgres); then
+    if [[ -f "$DB_OWNER_FLAG_FILE" ]]; then
+      cli_log "Database: running (owned by aiic)"
+    else
+      cli_log "Database: running (external)"
+    fi
+    overall="running"
+  else
+    cli_log "Database: stopped"
+  fi
+
+  cli_log "Logs: $LOG_ROOT"
+  if [[ "$overall" == "running" && "$degraded" -eq 0 ]]; then
+    return 0
+  fi
+  return 1
+}
+
+logs_daemon() {
+  local target="${1:-manager}"
+  local follow="${2:-0}"
+  local file
+
+  case "$target" in
+    manager | api | worker | web)
+      file="$LOG_ROOT/${target}.log"
+      ;;
+    *)
+      die "Unknown log target '$target'. Use: manager|api|worker|web"
+      ;;
+  esac
+
+  [[ -f "$file" ]] || die "Log file not found: $file"
+
+  if [[ "$follow" -eq 1 ]]; then
+    tail -n 120 -f "$file"
+  else
+    tail -n 120 "$file"
+  fi
+}
+
+usage() {
+  cat <<'EOF'
+Usage: aiic [command]
+
+Commands:
+  start           Start aiic in background (default)
+  start --no-open Start without opening browser
+  stop            Stop manager and all aiic-owned services
+  restart         Restart manager/services
+  status          Show manager/service/database status
+  logs [target]   Show logs (target: manager|api|worker|web, default manager)
+  logs [target] -f  Follow logs
+  run             Run in foreground (Ctrl+C to stop)
+  help            Show this help
+EOF
+}
+
+main() {
+  local cmd="${1:-start}"
+  shift || true
+
+  case "$cmd" in
+    __daemon)
+      run_daemon
+      ;;
+    start)
+      local should_open_browser=1
+      if [[ "${1:-}" == "--no-open" ]]; then
+        should_open_browser=0
+      fi
+      start_daemon "$should_open_browser"
+      ;;
+    stop | down | exit)
+      stop_daemon
+      ;;
+    restart)
+      stop_daemon
+      start_daemon 1
+      ;;
+    status)
+      status_daemon
+      ;;
+    logs)
+      local target="${1:-manager}"
+      local follow=0
+      if [[ "${2:-}" == "-f" || "${2:-}" == "--follow" || "${1:-}" == "-f" || "${1:-}" == "--follow" ]]; then
+        follow=1
+        if [[ "$target" == "-f" || "$target" == "--follow" ]]; then
+          target="manager"
+        fi
+      fi
+      logs_daemon "$target" "$follow"
+      ;;
+    run)
+      run_foreground
+      ;;
+    help | -h | --help)
+      usage
+      ;;
+    *)
+      die "Unknown command '$cmd'. Use: aiic help"
+      ;;
+  esac
 }
 
 main "$@"

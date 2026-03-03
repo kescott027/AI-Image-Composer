@@ -28,12 +28,15 @@ import { SceneCanvas } from "../components/SceneCanvas";
 import { type ZoneDrawingMode, ZoneEditor } from "../components/ZoneEditor";
 import { ROUTES } from "../routes";
 import {
+  mapLatestBlockingSketchArtifactId,
   mapLatestFinalCompositeArtifactId,
   mapLatestObjectRenderArtifactsByObjectId,
-  mapRecentSuccessfulArtifacts,
   mapLatestSketchArtifactsByObjectId,
+  mapRecentSuccessfulArtifacts,
+  mapSketchArtifactCandidatesByObjectId,
 } from "../state/jobArtifacts";
 import {
+  addLayerCommand,
   addObjectCommand,
   addZoneLassoCommand,
   addZoneRectCommand,
@@ -47,11 +50,51 @@ import {
   scaleObjectCommand,
   setNegativePromptCommand,
   setObjectNegativePromptCommand,
+  setObjectAnchoredCommand,
+  setObjectPreferredWireframeCommand,
   setObjectPromptCommand,
   setOverarchingPromptCommand,
   setStylePresetCommand,
 } from "../state/commands";
 import { SceneStoreProvider, useSceneStore } from "../state/sceneStore";
+
+const OBJECT_PRESETS = [
+  {
+    id: "person",
+    label: "Person",
+    name: "Person",
+    kind: "person",
+    prompt: "A person standing naturally, facing camera, clean silhouette",
+    width: 140,
+    height: 260,
+  },
+  {
+    id: "table",
+    label: "Table",
+    name: "Table",
+    kind: "prop",
+    prompt: "A wooden table, three-quarter view, clean silhouette",
+    width: 220,
+    height: 140,
+  },
+  {
+    id: "birthday_cake",
+    label: "Birthday Cake",
+    name: "Birthday Cake",
+    kind: "prop",
+    prompt: "A birthday cake with candles, clean silhouette",
+    width: 120,
+    height: 120,
+  },
+] as const;
+
+function createObjectId() {
+  return `obj_${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function createLayerId() {
+  return `layer_${Math.random().toString(36).slice(2, 10)}`;
+}
 
 function SceneEditorShell({ sceneId }: { sceneId: string }) {
   const [selectedObjectId, setSelectedObjectId] = useState<string | null>(null);
@@ -70,6 +113,8 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
   const [zoneDrawingMode, setZoneDrawingMode] = useState<ZoneDrawingMode>("NONE");
   const [pendingZoneName, setPendingZoneName] = useState("Zone 1");
   const [pendingLassoPoints, setPendingLassoPoints] = useState<Array<{ x: number; y: number }>>([]);
+  const [wireframeCycleCount, setWireframeCycleCount] = useState(3);
+  const [wireframeVariantCount, setWireframeVariantCount] = useState(4);
   const [isHydratedFromApi, setIsHydratedFromApi] = useState(false);
   const [isLoadingScene, setIsLoadingScene] = useState(true);
   const [isPersistingScene, setIsPersistingScene] = useState(false);
@@ -91,12 +136,45 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
     [sceneSpec.objects, selectedObjectId],
   );
 
+  const preferredWireframeArtifactsByObjectId = useMemo(
+    () =>
+      Object.fromEntries(
+        sceneSpec.objects
+          .map((object) => {
+            const artifactId = object.metadata?.preferred_wireframe_artifact_id;
+            if (typeof artifactId !== "string" || artifactId.length === 0) {
+              return null;
+            }
+            return [object.id, artifactId] as const;
+          })
+          .filter((entry): entry is readonly [string, string] => Boolean(entry)),
+      ),
+    [sceneSpec.objects],
+  );
+
   const wireframeArtifactsByObjectId = useMemo(
-    () => mapLatestSketchArtifactsByObjectId(sceneJobs),
+    () => ({
+      ...mapLatestSketchArtifactsByObjectId(sceneJobs),
+      ...preferredWireframeArtifactsByObjectId,
+    }),
+    [sceneJobs, preferredWireframeArtifactsByObjectId],
+  );
+  const sketchCandidatesByObjectId = useMemo(
+    () => mapSketchArtifactCandidatesByObjectId(sceneJobs, 8),
     [sceneJobs],
   );
+  const selectedObjectSketchCandidates = useMemo(() => {
+    if (!selectedObjectId) {
+      return [];
+    }
+    return sketchCandidatesByObjectId[selectedObjectId] ?? [];
+  }, [selectedObjectId, sketchCandidatesByObjectId]);
   const objectRenderArtifactsByObjectId = useMemo(
     () => mapLatestObjectRenderArtifactsByObjectId(sceneJobs),
+    [sceneJobs],
+  );
+  const blockingArtifactId = useMemo(
+    () => mapLatestBlockingSketchArtifactId(sceneJobs),
     [sceneJobs],
   );
   const finalCompositeArtifactId = useMemo(
@@ -118,6 +196,77 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
     () => sceneSpec.objects.map((object) => `${object.id}:${object.name}`).join("|"),
     [sceneSpec.objects],
   );
+  const renderOrderedObjects = useMemo(() => {
+    const visibleObjectLayerIds = new Set(
+      sceneSpec.layers
+        .filter((layer) => layer.visible && layer.type === "OBJECT")
+        .map((layer) => layer.id),
+    );
+    const layerOrder = new Map(sceneSpec.layers.map((layer) => [layer.id, layer.order]));
+
+    return [...sceneSpec.objects]
+      .filter((object) => visibleObjectLayerIds.has(object.layer_id))
+      .sort((left, right) => {
+        const leftLayerOrder = layerOrder.get(left.layer_id) ?? 0;
+        const rightLayerOrder = layerOrder.get(right.layer_id) ?? 0;
+        if (leftLayerOrder !== rightLayerOrder) {
+          return leftLayerOrder - rightLayerOrder;
+        }
+        return (left.transform?.z_index ?? 0) - (right.transform?.z_index ?? 0);
+      });
+  }, [sceneSpec.layers, sceneSpec.objects]);
+  const unanchoredRenderableObjects = useMemo(
+    () => renderOrderedObjects.filter((object) => object.metadata?.anchored !== true),
+    [renderOrderedObjects],
+  );
+  const latestObjectRenderJobByObjectId = useMemo(() => {
+    const latestByObjectId = new Map<string, JobRead>();
+    sceneJobs.forEach((job) => {
+      if (job.job_type !== "OBJECT_RENDER") {
+        return;
+      }
+      const targetObjectId = job.input.target_object_id;
+      if (typeof targetObjectId !== "string" || targetObjectId.length === 0) {
+        return;
+      }
+      const existing = latestByObjectId.get(targetObjectId);
+      const currentCreatedAtMs = job.created_at ? Date.parse(job.created_at) : 0;
+      const existingCreatedAtMs = existing?.created_at ? Date.parse(existing.created_at) : -1;
+      if (!existing || currentCreatedAtMs >= existingCreatedAtMs) {
+        latestByObjectId.set(targetObjectId, job);
+      }
+    });
+    return latestByObjectId;
+  }, [sceneJobs]);
+  const renderProgress = useMemo(() => {
+    const total = renderOrderedObjects.length;
+    let succeeded = 0;
+    let running = 0;
+    let queued = 0;
+    let failed = 0;
+    let missing = 0;
+
+    renderOrderedObjects.forEach((object) => {
+      const job = latestObjectRenderJobByObjectId.get(object.id);
+      if (!job) {
+        missing += 1;
+        return;
+      }
+      if (job.status === "SUCCEEDED") {
+        succeeded += 1;
+      } else if (job.status === "RUNNING") {
+        running += 1;
+      } else if (job.status === "QUEUED") {
+        queued += 1;
+      } else if (job.status === "FAILED") {
+        failed += 1;
+      } else {
+        missing += 1;
+      }
+    });
+
+    return { total, succeeded, running, queued, failed, missing };
+  }, [latestObjectRenderJobByObjectId, renderOrderedObjects]);
 
   useEffect(() => {
     latestSceneSpecRef.current = sceneSpec;
@@ -377,6 +526,28 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
     executeCommand(addObjectCommand(objectLayer.id, `Object ${sceneSpec.objects.length + 1}`));
   };
 
+  const addPresetObject = (preset: (typeof OBJECT_PRESETS)[number]) => {
+    if (!objectLayer) {
+      return;
+    }
+    const layerId = createLayerId();
+    const objectId = createObjectId();
+    executeCommand(addLayerCommand(`${preset.label} Layer`, "OBJECT", { layerId }));
+    executeCommand(
+      addObjectCommand(layerId, preset.name, {
+        objectId,
+        kind: preset.kind,
+        prompt: preset.prompt,
+        width: preset.width,
+        height: preset.height,
+      }),
+    );
+    setSelectedObjectId(objectId);
+    setJobFeedback(
+      `${preset.label} added on its own layer. Generate wireframe to place and anchor it in the scene.`,
+    );
+  };
+
   const applyObjectRename = () => {
     if (!selectedObject || !objectNameDraft.trim()) {
       return;
@@ -403,11 +574,19 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
     if (!selectedObject) {
       return;
     }
+    if (selectedObject.metadata?.anchored) {
+      setJobFeedback(`${selectedObject.name} is anchored. Unanchor to move.`);
+      return;
+    }
     executeCommand(moveObjectCommand(selectedObject.id, deltaX, deltaY));
   };
 
   const applyRotate = (deltaDeg: number) => {
     if (!selectedObject) {
+      return;
+    }
+    if (selectedObject.metadata?.anchored) {
+      setJobFeedback(`${selectedObject.name} is anchored. Unanchor to rotate.`);
       return;
     }
     executeCommand(rotateObjectCommand(selectedObject.id, deltaDeg));
@@ -417,7 +596,24 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
     if (!selectedObject) {
       return;
     }
+    if (selectedObject.metadata?.anchored) {
+      setJobFeedback(`${selectedObject.name} is anchored. Unanchor to scale.`);
+      return;
+    }
     executeCommand(scaleObjectCommand(selectedObject.id, multiplier));
+  };
+
+  const toggleAnchor = () => {
+    if (!selectedObject) {
+      return;
+    }
+    const anchored = selectedObject.metadata?.anchored === true;
+    executeCommand(setObjectAnchoredCommand(selectedObject.id, !anchored));
+    setJobFeedback(
+      !anchored
+        ? `${selectedObject.name} anchored in place.`
+        : `${selectedObject.name} unanchored and movable.`,
+    );
   };
 
   const applyZOrder = (direction: "UP" | "DOWN") => {
@@ -499,12 +695,33 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
     };
   }, [executeCommand, redo, selectedObject, undo]);
 
-  const submitGenerationJob = async (jobType: SupportedJobType) => {
-    if (jobType === "SKETCH" && !selectedObject) {
+  const queueGenerationJob = async (
+    jobType: SupportedJobType,
+    inputOptions?: {
+      targetObjectId?: string;
+      sourceArtifactId?: string;
+      wireframeArtifactId?: string;
+      generationMode?: "OBJECT" | "BLOCKING";
+    },
+  ) => {
+    const input = buildGenerationInput(sceneSpec, inputOptions);
+    return createJob({
+      scene_id: sceneSpec.scene.id,
+      job_type: jobType,
+      input,
+    });
+  };
+
+  const submitGenerationJob = async (
+    jobType: SupportedJobType,
+    options?: { allowSceneSketch?: boolean; targetObjectId?: string },
+  ) => {
+    const selectedTargetObjectId = options?.targetObjectId ?? selectedObject?.id;
+    if (jobType === "SKETCH" && !options?.allowSceneSketch && !selectedTargetObjectId) {
       setJobFeedback("Select an object before submitting a SKETCH job.");
       return;
     }
-    if (jobType === "OBJECT_RENDER" && !selectedObject) {
+    if (jobType === "OBJECT_RENDER" && !selectedTargetObjectId) {
       setJobFeedback("Select an object before submitting an OBJECT_RENDER job.");
       return;
     }
@@ -522,24 +739,193 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
 
     try {
       await upsertSceneSpec(sceneId, sceneSpec);
-      const inputOptions: { targetObjectId?: string; sourceArtifactId?: string } = {};
-      if ((jobType === "OBJECT_RENDER" || jobType === "SKETCH") && selectedObject) {
-        inputOptions.targetObjectId = selectedObject.id;
+      const inputOptions: {
+        targetObjectId?: string;
+        sourceArtifactId?: string;
+        wireframeArtifactId?: string;
+        generationMode?: "OBJECT" | "BLOCKING";
+      } = {};
+      if (jobType === "SKETCH") {
+        if (selectedTargetObjectId) {
+          inputOptions.targetObjectId = selectedTargetObjectId;
+          inputOptions.generationMode = "OBJECT";
+        } else {
+          inputOptions.generationMode = "BLOCKING";
+        }
+      }
+      if (jobType === "OBJECT_RENDER" && selectedTargetObjectId) {
+        inputOptions.targetObjectId = selectedTargetObjectId;
+        inputOptions.wireframeArtifactId =
+          preferredWireframeArtifactsByObjectId[selectedTargetObjectId] ??
+          wireframeArtifactsByObjectId[selectedTargetObjectId];
       }
       if (jobType === "REFINE" && finalCompositeArtifactId) {
         inputOptions.sourceArtifactId = finalCompositeArtifactId;
       }
-      const input = buildGenerationInput(sceneSpec, inputOptions);
-      const job = await createJob({
-        scene_id: sceneSpec.scene.id,
-        job_type: jobType,
-        input,
-      });
+      const job = await queueGenerationJob(jobType, inputOptions);
       setJobFeedback(`Queued ${job.job_type} as ${job.id} (status: ${job.status}).`);
       setPersistMessage("Scene snapshot persisted for queued job.");
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown job submission error";
       setJobFeedback(`Job submission failed: ${message}`);
+    } finally {
+      setActiveSubmission(null);
+    }
+  };
+
+  const generateBlockingLayer = async () => {
+    await submitGenerationJob("SKETCH", { allowSceneSketch: true });
+  };
+
+  const generateWireframeCycle = async () => {
+    if (!selectedObject) {
+      setJobFeedback("Select an object before cycling wireframe generation.");
+      return;
+    }
+    const count = Math.min(5, Math.max(2, wireframeCycleCount));
+    setActiveSubmission("SKETCH");
+    setJobFeedback(`Generating ${count} wireframe passes for ${selectedObject.name}...`);
+    try {
+      await upsertSceneSpec(sceneId, sceneSpec);
+      const queued: string[] = [];
+      for (let index = 0; index < count; index += 1) {
+        const job = await queueGenerationJob("SKETCH", {
+          targetObjectId: selectedObject.id,
+          generationMode: "OBJECT",
+        });
+        queued.push(job.id);
+      }
+      setJobFeedback(`Queued ${queued.length} wireframe cycles for ${selectedObject.name}.`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown wireframe cycle error";
+      setJobFeedback(`Wireframe cycle failed: ${message}`);
+    } finally {
+      setActiveSubmission(null);
+    }
+  };
+
+  const generateWireframeVariants = async () => {
+    if (!selectedObject) {
+      setJobFeedback("Select an object before generating wireframe variants.");
+      return;
+    }
+    const count = Math.min(8, Math.max(1, wireframeVariantCount));
+    setActiveSubmission("SKETCH");
+    setJobFeedback(`Generating ${count} wireframe variants for ${selectedObject.name}...`);
+    try {
+      await upsertSceneSpec(sceneId, sceneSpec);
+      for (let index = 0; index < count; index += 1) {
+        await queueGenerationJob("SKETCH", {
+          targetObjectId: selectedObject.id,
+          generationMode: "OBJECT",
+        });
+      }
+      setJobFeedback(`Queued ${count} wireframe variants for ${selectedObject.name}.`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown wireframe variant error";
+      setJobFeedback(`Variant generation failed: ${message}`);
+    } finally {
+      setActiveSubmission(null);
+    }
+  };
+
+  const chooseWireframeCandidate = (artifactId: string) => {
+    if (!selectedObject) {
+      return;
+    }
+    executeCommand(setObjectPreferredWireframeCommand(selectedObject.id, artifactId));
+    setJobFeedback(`Selected wireframe candidate ${artifactId} for ${selectedObject.name}.`);
+  };
+
+  const clearPreferredWireframeCandidate = () => {
+    if (!selectedObject) {
+      return;
+    }
+    executeCommand(setObjectPreferredWireframeCommand(selectedObject.id, null));
+    setJobFeedback("Wireframe candidate reset to latest successful sketch.");
+  };
+
+  const queueOrderedRenderPipeline = async (includeRefine: boolean) => {
+    if (renderOrderedObjects.length === 0) {
+      setJobFeedback("No visible objects to render.");
+      return;
+    }
+    if (unanchoredRenderableObjects.length > 0) {
+      setJobFeedback(
+        `Anchor all objects before full render. Unanchored: ${unanchoredRenderableObjects
+          .map((object) => object.name)
+          .join(", ")}`,
+      );
+      return;
+    }
+    setActiveSubmission("OBJECT_RENDER");
+    setJobFeedback(
+      includeRefine
+        ? "Queueing bottom-to-top object renders, composite, and refine..."
+        : "Queueing bottom-to-top object renders, then composite...",
+    );
+    try {
+      await upsertSceneSpec(sceneId, sceneSpec);
+      for (const object of renderOrderedObjects) {
+        await queueGenerationJob("OBJECT_RENDER", {
+          targetObjectId: object.id,
+          wireframeArtifactId:
+            preferredWireframeArtifactsByObjectId[object.id] ??
+            wireframeArtifactsByObjectId[object.id],
+          generationMode: "OBJECT",
+        });
+      }
+      await queueGenerationJob("FINAL_COMPOSITE");
+      if (includeRefine) {
+        await queueGenerationJob("REFINE");
+      }
+      setJobFeedback(
+        includeRefine
+          ? `Queued ${renderOrderedObjects.length} object render job(s) + composite + refine.`
+          : `Queued ${renderOrderedObjects.length} object render job(s) in layer order + final composite.`,
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown layered render error";
+      setJobFeedback(`Layered render queue failed: ${message}`);
+    } finally {
+      setActiveSubmission(null);
+    }
+  };
+
+  const renderOrderedLayersAndComposite = async () => {
+    await queueOrderedRenderPipeline(false);
+  };
+
+  const renderOrderedLayersCompositeAndRefine = async () => {
+    await queueOrderedRenderPipeline(true);
+  };
+
+  const retryFailedObjectRenders = async () => {
+    const failedObjects = renderOrderedObjects.filter(
+      (object) => latestObjectRenderJobByObjectId.get(object.id)?.status === "FAILED",
+    );
+    if (failedObjects.length === 0) {
+      setJobFeedback("No failed object renders to retry.");
+      return;
+    }
+
+    setActiveSubmission("OBJECT_RENDER");
+    setJobFeedback(`Retrying ${failedObjects.length} failed object render(s)...`);
+    try {
+      await upsertSceneSpec(sceneId, sceneSpec);
+      for (const object of failedObjects) {
+        await queueGenerationJob("OBJECT_RENDER", {
+          targetObjectId: object.id,
+          wireframeArtifactId:
+            preferredWireframeArtifactsByObjectId[object.id] ??
+            wireframeArtifactsByObjectId[object.id],
+          generationMode: "OBJECT",
+        });
+      }
+      setJobFeedback(`Queued ${failedObjects.length} object render retry job(s).`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown object retry error";
+      setJobFeedback(`Retry failed: ${message}`);
     } finally {
       setActiveSubmission(null);
     }
@@ -593,6 +979,7 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
         <SceneCanvas
           sceneSpec={sceneSpec}
           selectedObjectId={selectedObjectId}
+          blockingArtifactId={blockingArtifactId}
           wireframeArtifactsByObjectId={wireframeArtifactsByObjectId}
           objectRenderArtifactsByObjectId={objectRenderArtifactsByObjectId}
           finalCompositeArtifactId={showFinalComposite ? finalCompositeArtifactId : null}
@@ -600,6 +987,9 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
           pendingLassoPoints={pendingLassoPoints}
           onCreateRectZone={createRectZone}
           onAddLassoPoint={appendLassoPoint}
+          onMoveObject={(objectId, deltaX, deltaY) =>
+            executeCommand(moveObjectCommand(objectId, deltaX, deltaY))
+          }
           onSelectObject={setSelectedObjectId}
         />
 
@@ -608,9 +998,32 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
           <p>Prompt, constraints, generation, and version history</p>
           <p className="generation-status">{persistMessage}</p>
           <OverarchingPromptEditor scene={sceneSpec.scene} onApply={applyScenePrompt} />
-          <button type="button" className="button-link" onClick={addObject} disabled={!objectLayer}>
-            Add Object
-          </button>
+          <section className="object-tools">
+            <h3>Object Creation</h3>
+            <div className="tool-row">
+              <button
+                type="button"
+                className="button-link"
+                onClick={addObject}
+                disabled={!objectLayer}
+              >
+                Add Generic Object
+              </button>
+            </div>
+            <div className="tool-row">
+              {OBJECT_PRESETS.map((preset) => (
+                <button
+                  key={preset.id}
+                  type="button"
+                  className="mini-button"
+                  onClick={() => addPresetObject(preset)}
+                  disabled={!objectLayer}
+                >
+                  + {preset.label}
+                </button>
+              ))}
+            </div>
+          </section>
           <div className="object-tools">
             <h3>Object Transform</h3>
             <p>
@@ -734,6 +1147,14 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
               >
                 Delete
               </button>
+              <button
+                type="button"
+                className="mini-button"
+                onClick={toggleAnchor}
+                disabled={!selectedObject}
+              >
+                {selectedObject?.metadata?.anchored ? "Unanchor" : "Anchor"}
+              </button>
             </div>
             <p className="shortcut-hint">
               Shortcuts: Cmd/Ctrl+Z Undo, Cmd/Ctrl+Shift+Z Redo, Cmd/Ctrl+D Duplicate, Del Remove,
@@ -779,10 +1200,18 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
           <section className="generation-tools">
             <h3>Generation Jobs</h3>
             <p>
-              Queue backend jobs. SKETCH and OBJECT_RENDER use selected object. ZONE_RENDER uses
-              saved zones. REFINE applies a low-strength global pass.
+              Blocking pass uses scene prompt. SKETCH/OBJECT_RENDER use selected object.
+              OBJECT_RENDER jobs can be queued in full layer order for end-to-end composition.
             </p>
             <div className="tool-row">
+              <button
+                type="button"
+                className="button-link"
+                onClick={() => void generateBlockingLayer()}
+                disabled={activeSubmission !== null}
+              >
+                Generate Blocking Layer
+              </button>
               <button
                 type="button"
                 className="button-link"
@@ -802,11 +1231,21 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
               <button
                 type="button"
                 className="button-link"
-                onClick={() => void submitGenerationJob("FINAL_COMPOSITE")}
-                disabled={activeSubmission !== null}
+                onClick={() => void renderOrderedLayersAndComposite()}
+                disabled={activeSubmission !== null || renderOrderedObjects.length === 0}
               >
-                Generate Composite
+                Render All Layers + Composite
               </button>
+              <button
+                type="button"
+                className="button-link"
+                onClick={() => void renderOrderedLayersCompositeAndRefine()}
+                disabled={activeSubmission !== null || renderOrderedObjects.length === 0}
+              >
+                Render Full Scene + Refine
+              </button>
+            </div>
+            <div className="tool-row">
               <button
                 type="button"
                 className="button-link"
@@ -823,7 +1262,124 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
               >
                 Refine Composite
               </button>
+              <button
+                type="button"
+                className="mini-button"
+                onClick={() => void submitGenerationJob("FINAL_COMPOSITE")}
+                disabled={activeSubmission !== null}
+              >
+                Composite Only
+              </button>
             </div>
+            <div className="tool-row">
+              <label className="field-label" htmlFor="wireframe-cycle-count">
+                Cycle Count (2-5)
+              </label>
+              <input
+                id="wireframe-cycle-count"
+                className="text-input"
+                type="number"
+                min={2}
+                max={5}
+                value={wireframeCycleCount}
+                onChange={(event) => setWireframeCycleCount(Number(event.target.value))}
+              />
+              <button
+                type="button"
+                className="mini-button"
+                onClick={() => void generateWireframeCycle()}
+                disabled={activeSubmission !== null || !selectedObject}
+              >
+                Cycle Wireframe
+              </button>
+            </div>
+            <div className="tool-row">
+              <label className="field-label" htmlFor="wireframe-variant-count">
+                Variant Count
+              </label>
+              <input
+                id="wireframe-variant-count"
+                className="text-input"
+                type="number"
+                min={1}
+                max={8}
+                value={wireframeVariantCount}
+                onChange={(event) => setWireframeVariantCount(Number(event.target.value))}
+              />
+              <button
+                type="button"
+                className="mini-button"
+                onClick={() => void generateWireframeVariants()}
+                disabled={activeSubmission !== null || !selectedObject}
+              >
+                Generate N Variants
+              </button>
+              <button
+                type="button"
+                className="mini-button"
+                onClick={clearPreferredWireframeCandidate}
+                disabled={
+                  !selectedObject || !preferredWireframeArtifactsByObjectId[selectedObject.id]
+                }
+              >
+                Use Latest
+              </button>
+            </div>
+            {selectedObject ? (
+              <div className="artifact-gallery-panel">
+                <h4>Wireframe Candidates ({selectedObject.name})</h4>
+                {selectedObjectSketchCandidates.length === 0 ? (
+                  <p className="job-empty">No sketch candidates yet.</p>
+                ) : (
+                  <ul className="artifact-gallery-list">
+                    {selectedObjectSketchCandidates.map((artifactId) => (
+                      <li key={`candidate_${artifactId}`} className="artifact-gallery-item">
+                        <a
+                          href={`/api/artifacts/${artifactId}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="artifact-gallery-thumb-link"
+                        >
+                          <img
+                            src={`/api/artifacts/${artifactId}`}
+                            alt={`Wireframe candidate ${artifactId}`}
+                            className="artifact-gallery-thumb"
+                            loading="lazy"
+                          />
+                        </a>
+                        <div className="artifact-gallery-meta">
+                          <p className="artifact-gallery-title">{artifactId}</p>
+                          <button
+                            type="button"
+                            className="mini-button"
+                            onClick={() => chooseWireframeCandidate(artifactId)}
+                          >
+                            Use Candidate
+                          </button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            ) : null}
+            <section className="scene-versions-panel">
+              <h4>Layer Render Progress</h4>
+              <p>
+                {renderProgress.succeeded}/{renderProgress.total} succeeded ·
+                {` queued ${renderProgress.queued} · running ${renderProgress.running} · failed ${renderProgress.failed} · pending ${renderProgress.missing}`}
+              </p>
+              <div className="tool-row">
+                <button
+                  type="button"
+                  className="mini-button"
+                  onClick={() => void retryFailedObjectRenders()}
+                  disabled={activeSubmission !== null || renderProgress.failed === 0}
+                >
+                  Retry Failed Object Renders
+                </button>
+              </div>
+            </section>
             <div className="tool-row">
               <button
                 type="button"
@@ -835,6 +1391,9 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
               </button>
             </div>
             <p className="generation-status">{jobFeedback}</p>
+            <p className="generation-status">
+              Latest blocking pass: {blockingArtifactId ?? "none"}
+            </p>
             <p className="generation-status">
               Latest composite: {finalCompositeArtifactId ?? "none"}
             </p>

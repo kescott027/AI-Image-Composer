@@ -1,7 +1,7 @@
 SHELL := /usr/bin/env bash
 .DEFAULT_GOAL := help
 
-.PHONY: help install setup db-up db-down db-migrate db-downgrade dev-api dev-worker worker-job-once dev-web aiic openapi lint format format-check test scan ci hooks-install hooks-run iur-smoke iur-happy-path clean
+.PHONY: help install setup db-up db-down db-migrate db-downgrade dev-api dev-worker worker-job-once dev-web aiic aiic-start aiic-stop aiic-restart aiic-status aiic-logs aiic-run openapi lint format format-check test scan ci hooks-install hooks-run iur-smoke iur-happy-path clean
 
 help: ## Show available commands
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "%-16s %s\n", $$1, $$2}'
@@ -36,8 +36,26 @@ worker-job-once: ## Process a single queued job immediately
 dev-web: ## Run web development server
 	pnpm run dev:web
 
-aiic: ## Launch API + worker + web with watchdog and graceful shutdown
-	./scripts/aiic-watchdog.sh
+aiic: ## Start AIIC in background and open web app (default launcher)
+	./scripts/aiic-watchdog.sh start
+
+aiic-start: ## Start AIIC in background without opening browser
+	./scripts/aiic-watchdog.sh start --no-open
+
+aiic-stop: ## Stop AIIC manager + services and aiic-owned database
+	./scripts/aiic-watchdog.sh stop
+
+aiic-restart: ## Restart AIIC manager + services
+	./scripts/aiic-watchdog.sh restart
+
+aiic-status: ## Show AIIC manager/service/database status
+	./scripts/aiic-watchdog.sh status
+
+aiic-logs: ## Show recent AIIC manager logs
+	./scripts/aiic-watchdog.sh logs manager
+
+aiic-run: ## Run AIIC in foreground (Ctrl+C to stop)
+	./scripts/aiic-watchdog.sh run
 
 openapi: ## Export FastAPI OpenAPI schema to apps/api/openapi.json
 	./scripts/export-openapi.sh

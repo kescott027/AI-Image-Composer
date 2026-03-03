@@ -76,13 +76,21 @@ export async function listJobs(request: ListJobsRequest): Promise<JobRead[]> {
 
 export function buildGenerationInput(
   sceneSpec: SceneSpec,
-  options?: { targetObjectId?: string; targetZoneId?: string; sourceArtifactId?: string },
+  options?: {
+    targetObjectId?: string;
+    targetZoneId?: string;
+    sourceArtifactId?: string;
+    wireframeArtifactId?: string;
+    generationMode?: "OBJECT" | "BLOCKING";
+  },
 ): Record<string, unknown> {
   return {
     scene_spec: sceneSpec,
     target_object_id: options?.targetObjectId,
     target_zone_id: options?.targetZoneId,
     source_artifact_id: options?.sourceArtifactId,
+    wireframe_artifact_id: options?.wireframeArtifactId,
+    generation_mode: options?.generationMode,
     requested_from: "web_editor",
     requested_at: new Date().toISOString(),
   };

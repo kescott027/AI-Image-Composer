@@ -1,6 +1,6 @@
 # Multi-Layer Image Composer – Reprioritized Story Backlog
 
-This backlog is reordered into release epics with security and architecture hardening prioritized.
+This backlog is reordered into release epics with security and architecture hardening prioritized, while carving out a near-term usability release for guided 3-layer generation.
 
 Status legend:
 
@@ -42,6 +42,56 @@ Goal: usable scene composer with layered editing, generation flow, persistence, 
 28. **Story 28** `[DONE]` Implement Manual Zone Definition
 29. **Story 29** `[DONE]` Implement Zone-Based Generation Pipeline
 30. **Story 30** `[DONE]` Add Refinement Pass / Seam Reduction
+
+---
+
+## Epic 1A: Directed Three-Layer Compose Flow (Release 0.5 - Next Break)
+
+Goal: deliver a production-feeling user flow to build a cohesive 3-layer scene end-to-end:
+project -> overarching prompt -> blocking layer -> object wireframes (iterate/select) -> place/anchor -> layered render -> unified final image.
+
+### Prerequisites for This Break
+
+1. **Story 107** `[IN PROGRESS]` must be completed (stable app lifecycle: start/stop/status/logs).
+2. Local/API/worker happy-path validation must remain green (`make iur-happy-path`).
+3. Real adapter operating mode must be pinned for this break (fake-only, real-only, or hybrid fallback).
+4. SceneSpec fields for anchor and candidate variants must be finalized before UI implementation begins.
+
+### Stories for the Requested User Path
+
+1. **Story 113** `[IN PROGRESS]` Guided Project Bootstrap Flow (new project + overarching prompt first-run path)
+2. **Story 114** `[IN PROGRESS]` Blocking Layer Generation from Overarching Prompt (single action + regenerable)
+3. **Story 115** `[IN PROGRESS]` Entity/Object Creation Presets (person, table, cake + freeform object type)
+4. **Story 116** `[IN PROGRESS]` Object Wireframe Generation per Object Prompt on New Layer
+5. **Story 117** `[IN PROGRESS]` One-Button Wireframe Regeneration Cycle (quick cycle 2-5 passes)
+6. **Story 118** `[IN PROGRESS]` Multi-Variant Wireframe Batch Generation (`n` candidates) + Candidate Picker
+7. **Story 119** `[IN PROGRESS]` Drag/Place Workflow with Explicit Anchor Action
+8. **Story 120** `[IN PROGRESS]` Anchor Semantics Enforcement (anchored objects remain fixed during regenerate/render)
+9. **Story 121** `[IN PROGRESS]` Ordered Layer Render Orchestrator (bottom-to-top render queue from current scene state)
+10. **Story 122** `[IN PROGRESS]` Per-Layer Render Progress + Retry UX (clear status, fail/retry per object)
+11. **Story 123** `[IN PROGRESS]` Unified Composite Pass (global consistency using overarching prompt context)
+12. **Story 124** `[NOT STARTED]` Palette and Style Harmonization Controls (color consistency knobs + defaults)
+13. **Story 125** `[NOT STARTED]` End-to-End Acceptance Scenario: Person + Table + Birthday Cake
+14. **Story 126** `[NOT STARTED]` Release 0.5 UX Readiness Pass (professional polish, error states, loading states)
+
+### Decision Points (Must Resolve Before Story 116/118/120)
+
+1. Wireframe variant retention policy: how many variants persist per object and for how long.
+2. Anchor strictness: hard-lock position only, or lock position + scale + rotation.
+3. Regeneration behavior on anchored object: update pixels in place only vs allow optional offset suggestions.
+4. Blocking layer artifact type: wireframe-like structure, grayscale composition map, or full rough paint pass.
+5. Unified composite strategy: deterministic non-ML blend first vs optional ML refinement always-on.
+
+### Next Break Execution Order (Recommended)
+
+1. Foundation slice: Stories 113-116
+2. Iteration slice: Stories 117-120
+3. Rendering slice: Stories 121-124
+4. Release validation slice: Stories 125-126
+
+Exit criterion for Release 0.5:
+
+- A user can create a scene with person/table/cake, generate/select wireframes, place + anchor each object, render bottom-to-top layers, and produce a cohesive final composite in one continuous session.
 
 ---
 
@@ -89,6 +139,12 @@ Goal: security-first hardening, architecture hardening, reproducibility, observa
 27. **Story 64** `[NOT STARTED]` Persistent WebSocket Gateway Service
 28. **Story 43** `[NOT STARTED]` Streaming Progress Updates via WebSockets
 29. **Story 79** `[NOT STARTED]` Webhook System
+30. **Story 107** `[IN PROGRESS]` AIIC Process Manager UX (Background Start/Stop/Status/Logs as Primary Flow)
+31. **Story 108** `[NOT STARTED]` Linux User-Service Packaging (`systemd --user` unit + enable/disable scripts)
+32. **Story 109** `[NOT STARTED]` Desktop Launcher Packaging for Windows/macOS (taskbar/dock runnable app wrapper + clean shutdown)
+33. **Story 110** `[NOT STARTED]` Managed Window Lifecycle Control (app menu Exit + optional shutdown-on-window-close policy)
+34. **Story 111** `[NOT STARTED]` UI Theme System (Dark + Light Mode Support with User Toggle and Persistence)
+35. **Story 112** `[NOT STARTED]` Release UI Polish Pass (Dark Mode Default, Professional Visual QA, Accessibility Contrast Checks)
 
 ---
 
@@ -156,6 +212,7 @@ Goal: advanced intelligence, commercialization, and long-horizon platform resili
 ## Release Gate Notes
 
 - **Release 0** is complete. Sign-off recorded in `docs/RELEASE_0_SIGNOFF.MD`.
+- **Release 0.5** is the near-term guided 3-layer compose milestone (Epic 1A).
 - **Release 1** must pass security hardening and architecture hardening gates before production traffic.
 - **Release 2** focuses on stable extensibility and collaboration readiness.
 - **Release n** is long-horizon growth and enterprise expansion.
