@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
+import { LayersPanel } from "../components/LayersPanel";
 import { SceneCanvas } from "../components/SceneCanvas";
 import { ROUTES } from "../routes";
-import { addLayerCommand, addObjectCommand, setOverarchingPromptCommand, toggleLayerVisibilityCommand } from "../state/commands";
+import { addObjectCommand, setOverarchingPromptCommand } from "../state/commands";
 import { SceneStoreProvider, useSceneStore } from "../state/sceneStore";
 
 function SceneEditorShell({ sceneId }: { sceneId: string }) {
@@ -51,41 +52,7 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
       </header>
 
       <section className="editor-grid">
-        <aside className="panel panel-left">
-          <h2>Left Panel</h2>
-          <p>Layers and object controls</p>
-          <div className="panel-actions">
-            <button
-              type="button"
-              className="button-link"
-              onClick={() => executeCommand(addLayerCommand(`Layer ${sceneSpec.layers.length + 1}`))}
-            >
-              Add Layer
-            </button>
-            <button
-              type="button"
-              className="button-link"
-              onClick={addObject}
-              disabled={!objectLayer}
-            >
-              Add Object
-            </button>
-          </div>
-          <ul>
-            {sceneSpec.layers.map((layer) => (
-              <li key={layer.id}>
-                {layer.name} ({layer.type})
-                <button
-                  type="button"
-                  className="mini-button"
-                  onClick={() => executeCommand(toggleLayerVisibilityCommand(layer.id))}
-                >
-                  {layer.visible ? "Hide" : "Show"}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </aside>
+        <LayersPanel sceneSpec={sceneSpec} executeCommand={executeCommand} />
 
         <SceneCanvas sceneSpec={sceneSpec} />
 
@@ -104,6 +71,14 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
           />
           <button type="button" className="button-link" onClick={applyPrompt}>
             Apply Prompt Command
+          </button>
+          <button
+            type="button"
+            className="button-link"
+            onClick={addObject}
+            disabled={!objectLayer}
+          >
+            Add Object
           </button>
           <ul className="history-list">
             {commandLog.slice(-6).reverse().map((entry, index) => (

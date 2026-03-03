@@ -130,7 +130,7 @@ Canvas with:
 
 ---
 
-### 12. [NOT STARTED] Implement Layers Panel
+### 12. [DONE] Implement Layers Panel
 **Deliverable:**  
 UI to:
 - Create layers

@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { addLayerCommand, addObjectCommand, setOverarchingPromptCommand } from "../../apps/web/src/state/commands";
+import {
+  addLayerCommand,
+  addObjectCommand,
+  moveLayerCommand,
+  setOverarchingPromptCommand,
+  toggleLayerLockCommand,
+} from "../../apps/web/src/state/commands";
 import { createInitialSceneStoreState, sceneStoreReducer } from "../../apps/web/src/state/sceneState";
 
 describe("scene store reducer", () => {
@@ -55,5 +61,29 @@ describe("scene store reducer", () => {
 
     expect(state.sceneSpec.objects).toHaveLength(1);
     expect(state.sceneSpec.objects[0]?.name).toBe("Hero");
+  });
+
+  it("toggles lock and reorders layers", () => {
+    let state = createInitialSceneStoreState("scene_store_4");
+    const ordered = [...state.sceneSpec.layers].sort((a, b) => a.order - b.order);
+    const middleLayer = ordered[1];
+    expect(middleLayer).toBeDefined();
+    if (!middleLayer) {
+      return;
+    }
+
+    state = sceneStoreReducer(state, {
+      type: "EXECUTE_COMMAND",
+      command: toggleLayerLockCommand(middleLayer.id),
+    });
+    const lockedLayer = state.sceneSpec.layers.find((layer) => layer.id === middleLayer.id);
+    expect(lockedLayer?.locked).toBe(true);
+
+    state = sceneStoreReducer(state, {
+      type: "EXECUTE_COMMAND",
+      command: moveLayerCommand(middleLayer.id, "UP"),
+    });
+    const reordered = [...state.sceneSpec.layers].sort((a, b) => a.order - b.order);
+    expect(reordered[0]?.id).toBe(middleLayer.id);
   });
 });

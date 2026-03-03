@@ -164,6 +164,40 @@ p {
   margin-bottom: 0.45rem;
 }
 
+.layer-list {
+  list-style: none;
+  margin: 0.9rem 0 0;
+  padding: 0;
+}
+
+.layer-item {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0.55rem 0.6rem;
+  margin-bottom: 0.45rem;
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.layer-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.layer-main span {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.72rem;
+  color: var(--ink-soft);
+}
+
+.layer-actions {
+  display: flex;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+  margin-top: 0.4rem;
+}
+
 .panel-actions {
   display: flex;
   gap: 0.45rem;
@@ -179,6 +213,11 @@ p {
   color: var(--ink-soft);
   font-size: 0.72rem;
   padding: 0.12rem 0.45rem;
+}
+
+.mini-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .canvas-placeholder {

@@ -61,6 +61,47 @@ export function toggleLayerVisibilityCommand(layerId: string): SceneCommand {
   };
 }
 
+export function toggleLayerLockCommand(layerId: string): SceneCommand {
+  return {
+    name: "TOGGLE_LAYER_LOCK",
+    apply(sceneSpec) {
+      const next = cloneSceneSpec(sceneSpec);
+      next.layers = next.layers.map((layer) =>
+        layer.id === layerId ? { ...layer, locked: !layer.locked } : layer,
+      );
+      return next;
+    },
+  };
+}
+
+export function moveLayerCommand(layerId: string, direction: "UP" | "DOWN"): SceneCommand {
+  return {
+    name: direction === "UP" ? "MOVE_LAYER_UP" : "MOVE_LAYER_DOWN",
+    apply(sceneSpec) {
+      const next = cloneSceneSpec(sceneSpec);
+      const ordered = [...next.layers].sort((a, b) => a.order - b.order);
+      const currentIndex = ordered.findIndex((layer) => layer.id === layerId);
+      if (currentIndex === -1) {
+        return next;
+      }
+
+      const neighborIndex = direction === "UP" ? currentIndex - 1 : currentIndex + 1;
+      if (neighborIndex < 0 || neighborIndex >= ordered.length) {
+        return next;
+      }
+
+      [ordered[currentIndex], ordered[neighborIndex]] = [ordered[neighborIndex], ordered[currentIndex]];
+      const orderById = new Map(ordered.map((layer, index) => [layer.id, index]));
+
+      next.layers = next.layers.map((layer) => ({
+        ...layer,
+        order: orderById.get(layer.id) ?? layer.order,
+      }));
+      return next;
+    },
+  };
+}
+
 export function addObjectCommand(layerId: string, name: string): SceneCommand {
   return {
     name: "ADD_OBJECT",
