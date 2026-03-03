@@ -2,3 +2,4 @@
 set -euo pipefail
 
 docker compose up -d postgres
+./scripts/db-wait.sh

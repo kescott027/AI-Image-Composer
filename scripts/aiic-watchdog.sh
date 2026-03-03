@@ -95,6 +95,9 @@ start_database_if_needed() {
     (cd "$REPO_ROOT" && ./scripts/db-up.sh)
   fi
 
+  log "Waiting for Postgres readiness ..."
+  (cd "$REPO_ROOT" && ./scripts/db-wait.sh)
+
   log "Applying migrations ..."
   (cd "$REPO_ROOT" && ./scripts/db-migrate.sh)
 }
