@@ -1,4 +1,6 @@
 import argparse
+import logging
+import os
 import time
 from datetime import UTC, datetime
 from io import BytesIO
@@ -12,6 +14,22 @@ from PIL import Image, ImageFilter
 from sqlalchemy import asc, desc, select
 from sqlalchemy.orm import Session
 
+
+def _configure_worker_logger() -> logging.Logger:
+    level_name = os.getenv("AIIC_LOG_LEVEL", "INFO").upper()
+    level = getattr(logging, level_name, logging.INFO)
+    root_logger = logging.getLogger()
+    if not root_logger.handlers:
+        logging.basicConfig(
+            level=level,
+            format="%(asctime)s level=%(levelname)s service=worker event=%(message)s",
+        )
+    logger = logging.getLogger("aiic.worker")
+    logger.setLevel(level)
+    return logger
+
+
+worker_logger = _configure_worker_logger()
 _artifact_store: LocalArtifactStore | None = None
 PALETTE_TINTS: dict[str, tuple[int, int, int]] = {
     "balanced_warm": (226, 189, 152),
@@ -36,7 +54,7 @@ def get_artifact_store() -> LocalArtifactStore:
 
 
 def run_once() -> None:
-    print("worker heartbeat: ok")
+    worker_logger.info("worker_heartbeat status=ok")
 
 
 def _append_job_log(job: db_models.Job, message: str) -> None:
@@ -748,10 +766,11 @@ def _render_model_adapter_job(
 def process_one_job() -> bool:
     session_local = get_session_local()
     db = session_local()
+    job: db_models.Job | None = None
     try:
         job = _claim_next_job(db)
         if job is None:
-            print("worker: no queued jobs")
+            worker_logger.info("worker_queue_empty")
             return False
 
         _append_job_log(job, f"Processing job {job.id} ({job.job_type})")
@@ -851,23 +870,41 @@ def process_one_job() -> bool:
         _append_job_log(job, "Job completed successfully")
         db.commit()
 
-        print(f"worker: processed {job.id}")
+        worker_logger.info("worker_job_processed job_id=%s scene_id=%s", job.id, job.scene_id)
         return True
     except Exception as exc:
-        db.rollback()
+        try:
+            db.rollback()
+        except Exception as rollback_exc:
+            worker_logger.warning("worker_rollback_failed error=%s", rollback_exc)
 
         # Try to update the currently claimed job as failed.
-        if "job" in locals() and job is not None:
+        if job is not None:
             job.status = "FAILED"
             job.error = str(exc)
             job.finished_at = datetime.now(UTC)
             _append_job_log(job, f"Job failed: {exc}")
-            db.commit()
+            try:
+                db.commit()
+            except Exception as update_exc:
+                worker_logger.warning(
+                    "worker_failed_status_update_error job_id=%s error=%s",
+                    job.id,
+                    update_exc,
+                )
 
-        print(f"worker error: {exc}")
+        worker_logger.exception(
+            "worker_job_error job_id=%s scene_id=%s error=%s",
+            job.id if job is not None else "unknown",
+            job.scene_id if job is not None else "unknown",
+            exc,
+        )
         return False
     finally:
-        db.close()
+        try:
+            db.close()
+        except Exception as close_exc:
+            worker_logger.warning("worker_session_close_failed error=%s", close_exc)
 
 
 def run_forever(interval_seconds: int = 10, poll_jobs: bool = False) -> None:

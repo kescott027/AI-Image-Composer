@@ -24,6 +24,7 @@ def test_rate_limiting_blocks_after_max_requests(monkeypatch) -> None:
     assert third.headers["x-ratelimit-limit"] == "2"
     assert third.headers["x-ratelimit-remaining"] == "0"
     assert "retry-after" in third.headers
+    assert "x-request-id" in third.headers
 
 
 def test_rate_limiter_reset_clears_bucket(monkeypatch) -> None:
@@ -63,3 +64,19 @@ def test_rate_limiter_exempts_health_path(monkeypatch) -> None:
     assert first.status_code == 200
     assert second.status_code == 200
     assert third.status_code == 200
+
+
+def test_rate_limiter_preserves_incoming_request_id(monkeypatch) -> None:
+    limiter = RateLimiter(
+        enabled=True,
+        window_seconds=60,
+        max_requests=1,
+        exempt_paths={"/health"},
+    )
+    monkeypatch.setattr(main, "rate_limiter", limiter)
+
+    with TestClient(main.app) as client:
+        response = client.get("/openapi.json", headers={"x-request-id": "req-custom-id"})
+
+    assert response.status_code == 200
+    assert response.headers["x-request-id"] == "req-custom-id"

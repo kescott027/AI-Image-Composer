@@ -156,6 +156,24 @@ def test_process_one_job_when_queue_is_empty(monkeypatch, tmp_path: Path) -> Non
     engine.dispose()
 
 
+def test_process_one_job_survives_db_and_rollback_failures(monkeypatch) -> None:
+    class BrokenSession:
+        def execute(self, *_args, **_kwargs):
+            raise RuntimeError("database unavailable")
+
+        def rollback(self):
+            raise RuntimeError("rollback unavailable")
+
+        def close(self):
+            return None
+
+    monkeypatch.setattr(worker, "get_session_local", lambda: lambda: BrokenSession())
+
+    processed = worker.process_one_job()
+
+    assert processed is False
+
+
 def test_process_one_job_persists_mask_artifact_when_adapter_returns_mask(
     monkeypatch, tmp_path: Path
 ) -> None:
