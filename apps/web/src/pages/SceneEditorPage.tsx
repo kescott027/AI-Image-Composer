@@ -383,6 +383,20 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
     }
     return "info";
   }, [jobFeedback]);
+  const sceneLoadTone = useMemo(() => {
+    const text = sceneLoadMessage.toLowerCase();
+    if (text.includes("loading")) {
+      return "info";
+    }
+    if (text.includes("using local scene seed")) {
+      return "warning";
+    }
+    if (text.includes("failed")) {
+      return "error";
+    }
+    return "success";
+  }, [sceneLoadMessage]);
+  const controlsDisabled = isLoadingScene || !isHydratedFromApi;
 
   useEffect(() => {
     latestSceneSpecRef.current = sceneSpec;
@@ -893,6 +907,10 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
   };
 
   const generateBlockingLayer = async () => {
+    if (sceneSpec.scene.overarching_prompt.trim().length === 0) {
+      setJobFeedback("Set an overarching scene prompt before generating a blocking layer.");
+      return;
+    }
     await submitGenerationJob("SKETCH", { allowSceneSketch: true });
   };
 
@@ -1074,7 +1092,7 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
         <div>
           <h1>Scene Editor</h1>
           <p>Scene: {sceneId || "unknown"}</p>
-          <p>{sceneLoadMessage}</p>
+          <p className={`generation-status status-${sceneLoadTone}`}>{sceneLoadMessage}</p>
         </div>
         <div className="toolbar-cluster">
           <button type="button" className="button-link" onClick={undo} disabled={!canUndo}>
@@ -1087,7 +1105,7 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
             type="button"
             className="button-link"
             onClick={() => void saveScene()}
-            disabled={isPersistingScene}
+            disabled={isPersistingScene || controlsDisabled}
           >
             Save Scene
           </button>
@@ -1095,7 +1113,7 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
             type="button"
             className="button-link"
             onClick={() => void saveVersion()}
-            disabled={isSavingVersion || isLoadingScene}
+            disabled={isSavingVersion || controlsDisabled}
           >
             Save Version
           </button>
@@ -1137,7 +1155,7 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
                 type="button"
                 className="button-link"
                 onClick={addObject}
-                disabled={!objectLayer}
+                disabled={!objectLayer || controlsDisabled}
               >
                 Add Generic Object
               </button>
@@ -1149,7 +1167,7 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
                   type="button"
                   className="mini-button"
                   onClick={() => addPresetObject(preset)}
-                  disabled={!objectLayer}
+                  disabled={!objectLayer || controlsDisabled}
                 >
                   + {preset.label}
                 </button>
@@ -1166,7 +1184,7 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
                 type="button"
                 className="mini-button"
                 onClick={() => applyMove(-12, 0)}
-                disabled={!selectedObject}
+                disabled={!selectedObject || controlsDisabled}
               >
                 Left
               </button>
@@ -1174,7 +1192,7 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
                 type="button"
                 className="mini-button"
                 onClick={() => applyMove(12, 0)}
-                disabled={!selectedObject}
+                disabled={!selectedObject || controlsDisabled}
               >
                 Right
               </button>
@@ -1182,7 +1200,7 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
                 type="button"
                 className="mini-button"
                 onClick={() => applyMove(0, -12)}
-                disabled={!selectedObject}
+                disabled={!selectedObject || controlsDisabled}
               >
                 Up
               </button>
@@ -1190,7 +1208,7 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
                 type="button"
                 className="mini-button"
                 onClick={() => applyMove(0, 12)}
-                disabled={!selectedObject}
+                disabled={!selectedObject || controlsDisabled}
               >
                 Down
               </button>
@@ -1200,7 +1218,7 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
                 type="button"
                 className="mini-button"
                 onClick={() => applyRotate(-15)}
-                disabled={!selectedObject}
+                disabled={!selectedObject || controlsDisabled}
               >
                 Rotate -15
               </button>
@@ -1208,7 +1226,7 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
                 type="button"
                 className="mini-button"
                 onClick={() => applyRotate(15)}
-                disabled={!selectedObject}
+                disabled={!selectedObject || controlsDisabled}
               >
                 Rotate +15
               </button>
@@ -1216,7 +1234,7 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
                 type="button"
                 className="mini-button"
                 onClick={() => applyScale(0.9)}
-                disabled={!selectedObject}
+                disabled={!selectedObject || controlsDisabled}
               >
                 Scale -10%
               </button>
@@ -1224,7 +1242,7 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
                 type="button"
                 className="mini-button"
                 onClick={() => applyScale(1.1)}
-                disabled={!selectedObject}
+                disabled={!selectedObject || controlsDisabled}
               >
                 Scale +10%
               </button>
@@ -1234,7 +1252,7 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
                 type="button"
                 className="mini-button"
                 onClick={() => applyZOrder("DOWN")}
-                disabled={!selectedObject}
+                disabled={!selectedObject || controlsDisabled}
               >
                 Send Back
               </button>
@@ -1242,7 +1260,7 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
                 type="button"
                 className="mini-button"
                 onClick={() => applyZOrder("UP")}
-                disabled={!selectedObject}
+                disabled={!selectedObject || controlsDisabled}
               >
                 Bring Front
               </button>
@@ -1253,13 +1271,13 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
                 value={objectNameDraft}
                 onChange={(event) => setObjectNameDraft(event.target.value)}
                 placeholder="Selected object name"
-                disabled={!selectedObject}
+                disabled={!selectedObject || controlsDisabled}
               />
               <button
                 type="button"
                 className="mini-button"
                 onClick={applyObjectRename}
-                disabled={!selectedObject || !objectNameDraft.trim()}
+                disabled={!selectedObject || !objectNameDraft.trim() || controlsDisabled}
               >
                 Rename
               </button>
@@ -1267,7 +1285,7 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
                 type="button"
                 className="mini-button"
                 onClick={duplicateSelectedObject}
-                disabled={!selectedObject}
+                disabled={!selectedObject || controlsDisabled}
               >
                 Duplicate
               </button>
@@ -1275,7 +1293,7 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
                 type="button"
                 className="mini-button"
                 onClick={removeSelectedObject}
-                disabled={!selectedObject}
+                disabled={!selectedObject || controlsDisabled}
               >
                 Delete
               </button>
@@ -1283,7 +1301,7 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
                 type="button"
                 className="mini-button"
                 onClick={toggleAnchor}
-                disabled={!selectedObject}
+                disabled={!selectedObject || controlsDisabled}
               >
                 {selectedObject?.metadata?.anchored ? "Unanchor" : "Anchor"}
               </button>
@@ -1398,7 +1416,7 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
                 type="button"
                 className="button-link"
                 onClick={() => void generateBlockingLayer()}
-                disabled={activeSubmission !== null}
+                disabled={activeSubmission !== null || controlsDisabled}
               >
                 Generate Blocking Layer
               </button>
@@ -1406,7 +1424,7 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
                 type="button"
                 className="button-link"
                 onClick={() => void submitGenerationJob("SKETCH")}
-                disabled={activeSubmission !== null || !selectedObject}
+                disabled={activeSubmission !== null || !selectedObject || controlsDisabled}
               >
                 Generate Wireframe
               </button>
@@ -1414,7 +1432,7 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
                 type="button"
                 className="button-link"
                 onClick={() => void submitGenerationJob("OBJECT_RENDER")}
-                disabled={activeSubmission !== null || !selectedObject}
+                disabled={activeSubmission !== null || !selectedObject || controlsDisabled}
               >
                 Render Object
               </button>
@@ -1422,7 +1440,9 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
                 type="button"
                 className="button-link"
                 onClick={() => void renderOrderedLayersAndComposite()}
-                disabled={activeSubmission !== null || renderOrderedObjects.length === 0}
+                disabled={
+                  activeSubmission !== null || renderOrderedObjects.length === 0 || controlsDisabled
+                }
               >
                 Render All Layers + Composite
               </button>
@@ -1430,7 +1450,9 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
                 type="button"
                 className="button-link"
                 onClick={() => void renderOrderedLayersCompositeAndRefine()}
-                disabled={activeSubmission !== null || renderOrderedObjects.length === 0}
+                disabled={
+                  activeSubmission !== null || renderOrderedObjects.length === 0 || controlsDisabled
+                }
               >
                 Render Full Scene + Refine
               </button>
@@ -1440,7 +1462,9 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
                 type="button"
                 className="button-link"
                 onClick={() => void submitGenerationJob("ZONE_RENDER")}
-                disabled={activeSubmission !== null || sceneSpec.zones.length === 0}
+                disabled={
+                  activeSubmission !== null || sceneSpec.zones.length === 0 || controlsDisabled
+                }
               >
                 Generate Zones
               </button>
@@ -1448,7 +1472,9 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
                 type="button"
                 className="button-link"
                 onClick={() => void submitGenerationJob("REFINE")}
-                disabled={activeSubmission !== null || !finalCompositeArtifactId}
+                disabled={
+                  activeSubmission !== null || !finalCompositeArtifactId || controlsDisabled
+                }
               >
                 Refine Composite
               </button>
@@ -1456,7 +1482,7 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
                 type="button"
                 className="mini-button"
                 onClick={() => void submitGenerationJob("FINAL_COMPOSITE")}
-                disabled={activeSubmission !== null}
+                disabled={activeSubmission !== null || controlsDisabled}
               >
                 Composite Only
               </button>
@@ -1478,7 +1504,7 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
                 type="button"
                 className="mini-button"
                 onClick={() => void generateWireframeCycle()}
-                disabled={activeSubmission !== null || !selectedObject}
+                disabled={activeSubmission !== null || !selectedObject || controlsDisabled}
               >
                 Cycle Wireframe
               </button>
@@ -1500,7 +1526,7 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
                 type="button"
                 className="mini-button"
                 onClick={() => void generateWireframeVariants()}
-                disabled={activeSubmission !== null || !selectedObject}
+                disabled={activeSubmission !== null || !selectedObject || controlsDisabled}
               >
                 Generate N Variants
               </button>
@@ -1509,7 +1535,9 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
                 className="mini-button"
                 onClick={clearPreferredWireframeCandidate}
                 disabled={
-                  !selectedObject || !preferredWireframeArtifactsByObjectId[selectedObject.id]
+                  !selectedObject ||
+                  !preferredWireframeArtifactsByObjectId[selectedObject.id] ||
+                  controlsDisabled
                 }
               >
                 Use Latest
@@ -1564,7 +1592,9 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
                   type="button"
                   className="mini-button"
                   onClick={() => void retryFailedObjectRenders()}
-                  disabled={activeSubmission !== null || renderProgress.failed === 0}
+                  disabled={
+                    activeSubmission !== null || renderProgress.failed === 0 || controlsDisabled
+                  }
                 >
                   Retry Failed Object Renders
                 </button>
@@ -1575,7 +1605,7 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
                 type="button"
                 className="mini-button"
                 onClick={() => setShowFinalComposite((current) => !current)}
-                disabled={!finalCompositeArtifactId}
+                disabled={!finalCompositeArtifactId || controlsDisabled}
               >
                 {showFinalComposite ? "Hide Composite Layer" : "Show Composite Layer"}
               </button>
