@@ -12,6 +12,7 @@ class ProjectRead(BaseModel):
     name: str
     description: str | None = None
     created_at: str | None = None
+    archived_at: str | None = None
 
 
 class SceneCreate(BaseModel):

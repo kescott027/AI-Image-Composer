@@ -110,7 +110,7 @@ Goal: security-first hardening, architecture hardening, reproducibility, observa
 7. **Story 58** `[DONE]` Implement Artifact Integrity Verification
 8. **Story 60** `[DONE]` Implement Immutable Artifact Storage Mode
 9. **Story 89** `[DONE]` Automated Backup & Restore
-10. **Story 88** `[NOT STARTED]` Project Archiving System
+10. **Story 88** `[DONE]` Project Archiving System
 
 ### Core Architecture Stability
 
