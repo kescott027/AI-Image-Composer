@@ -93,6 +93,8 @@ Goal: security-first hardening, architecture hardening, reproducibility, observa
 31. **Story 108** `[NOT STARTED]` Linux User-Service Packaging (`systemd --user` unit + enable/disable scripts)
 32. **Story 109** `[NOT STARTED]` Desktop Launcher Packaging for Windows/macOS (taskbar/dock runnable app wrapper + clean shutdown)
 33. **Story 110** `[NOT STARTED]` Managed Window Lifecycle Control (app menu Exit + optional shutdown-on-window-close policy)
+34. **Story 111** `[NOT STARTED]` UI Theme System (Dark + Light Mode Support with User Toggle and Persistence)
+35. **Story 112** `[NOT STARTED]` Release UI Polish Pass (Dark Mode Default, Professional Visual QA, Accessibility Contrast Checks)
 
 ---
 
