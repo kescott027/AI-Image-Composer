@@ -45,7 +45,7 @@ Goal: usable scene composer with layered editing, generation flow, persistence, 
 
 ---
 
-## Epic 1A: Directed Three-Layer Compose Flow (Release 0.5 - Next Break)
+## Epic 1A: Directed Three-Layer Compose Flow (Release 0.5)
 
 Goal: deliver a production-feeling user flow to build a cohesive 3-layer scene end-to-end:
 project -> overarching prompt -> blocking layer -> object wireframes (iterate/select) -> place/anchor -> layered render -> unified final image.
@@ -59,17 +59,17 @@ project -> overarching prompt -> blocking layer -> object wireframes (iterate/se
 
 ### Stories for the Requested User Path
 
-1. **Story 113** `[IN PROGRESS]` Guided Project Bootstrap Flow (new project + overarching prompt first-run path)
-2. **Story 114** `[IN PROGRESS]` Blocking Layer Generation from Overarching Prompt (single action + regenerable)
-3. **Story 115** `[IN PROGRESS]` Entity/Object Creation Presets (person, table, cake + freeform object type)
-4. **Story 116** `[IN PROGRESS]` Object Wireframe Generation per Object Prompt on New Layer
-5. **Story 117** `[IN PROGRESS]` One-Button Wireframe Regeneration Cycle (quick cycle 2-5 passes)
-6. **Story 118** `[IN PROGRESS]` Multi-Variant Wireframe Batch Generation (`n` candidates) + Candidate Picker
-7. **Story 119** `[IN PROGRESS]` Drag/Place Workflow with Explicit Anchor Action
-8. **Story 120** `[IN PROGRESS]` Anchor Semantics Enforcement (anchored objects remain fixed during regenerate/render)
-9. **Story 121** `[IN PROGRESS]` Ordered Layer Render Orchestrator (bottom-to-top render queue from current scene state)
-10. **Story 122** `[IN PROGRESS]` Per-Layer Render Progress + Retry UX (clear status, fail/retry per object)
-11. **Story 123** `[IN PROGRESS]` Unified Composite Pass (global consistency using overarching prompt context)
+1. **Story 113** `[DONE]` Guided Project Bootstrap Flow (new project + overarching prompt first-run path)
+2. **Story 114** `[DONE]` Blocking Layer Generation from Overarching Prompt (single action + regenerable)
+3. **Story 115** `[DONE]` Entity/Object Creation Presets (person, table, cake + freeform object type)
+4. **Story 116** `[DONE]` Object Wireframe Generation per Object Prompt on New Layer
+5. **Story 117** `[DONE]` One-Button Wireframe Regeneration Cycle (quick cycle 2-5 passes)
+6. **Story 118** `[DONE]` Multi-Variant Wireframe Batch Generation (`n` candidates) + Candidate Picker
+7. **Story 119** `[DONE]` Drag/Place Workflow with Explicit Anchor Action
+8. **Story 120** `[DONE]` Anchor Semantics Enforcement (anchored objects remain fixed during regenerate/render)
+9. **Story 121** `[DONE]` Ordered Layer Render Orchestrator (bottom-to-top render queue from current scene state)
+10. **Story 122** `[DONE]` Per-Layer Render Progress + Retry UX (clear status, fail/retry per object)
+11. **Story 123** `[DONE]` Unified Composite Pass (global consistency using overarching prompt context)
 12. **Story 124** `[DONE]` Palette and Style Harmonization Controls (color consistency knobs + defaults)
 13. **Story 125** `[DONE]` End-to-End Acceptance Scenario: Person + Table + Birthday Cake
 14. **Story 126** `[DONE]` Release 0.5 UX Readiness Pass (professional polish, error states, loading states)
@@ -89,7 +89,7 @@ project -> overarching prompt -> blocking layer -> object wireframes (iterate/se
 3. Rendering slice: Stories 121-124
 4. Release validation slice: Stories 125-126
 
-Exit criterion for Release 0.5:
+Release 0.5 completion criteria:
 
 - A user can create a scene with person/table/cake, generate/select wireframes, place + anchor each object, render bottom-to-top layers, and produce a cohesive final composite in one continuous session.
 
@@ -212,7 +212,7 @@ Goal: advanced intelligence, commercialization, and long-horizon platform resili
 ## Release Gate Notes
 
 - **Release 0** is complete. Sign-off recorded in `docs/RELEASE_0_SIGNOFF.MD`.
-- **Release 0.5** is the near-term guided 3-layer compose milestone (Epic 1A).
+- **Release 0.5** guided 3-layer compose milestone (Epic 1A) is complete.
 - **Release 1** must pass security hardening and architecture hardening gates before production traffic.
 - **Release 2** focuses on stable extensibility and collaboration readiness.
 - **Release n** is long-horizon growth and enterprise expansion.
