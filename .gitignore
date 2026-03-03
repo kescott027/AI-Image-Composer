@@ -162,3 +162,6 @@ pnpm-lock.yaml
 
 # Local artifact storage
 .artifacts/
+
+# JetBrains IDE
+.idea/
