@@ -149,7 +149,7 @@ UI to:
 
 ---
 
-### 14. [NOT STARTED] Implement Overarching Prompt Editor
+### 14. [DONE] Implement Overarching Prompt Editor
 **Deliverable:**  
 Scene-level prompt editor stored in SceneSpec and versioned.
 

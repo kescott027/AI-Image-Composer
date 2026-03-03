@@ -8,7 +8,9 @@ import {
   moveLayerCommand,
   rotateObjectCommand,
   scaleObjectCommand,
+  setNegativePromptCommand,
   setOverarchingPromptCommand,
+  setStylePresetCommand,
   toggleLayerLockCommand,
 } from "../../apps/web/src/state/commands";
 import { createInitialSceneStoreState, sceneStoreReducer } from "../../apps/web/src/state/sceneState";
@@ -45,6 +47,32 @@ describe("scene store reducer", () => {
 
     state = sceneStoreReducer(state, { type: "REDO" });
     expect(state.sceneSpec.scene.overarching_prompt).toBe("A neon skyline at dusk");
+  });
+
+  it("updates scene-level prompt fields through commands", () => {
+    let state = createInitialSceneStoreState("scene_store_prompt_fields");
+
+    state = sceneStoreReducer(state, {
+      type: "EXECUTE_COMMAND",
+      command: setOverarchingPromptCommand("A bright retro diner at sunrise"),
+    });
+    state = sceneStoreReducer(state, {
+      type: "EXECUTE_COMMAND",
+      command: setNegativePromptCommand("blurry, low contrast"),
+    });
+    state = sceneStoreReducer(state, {
+      type: "EXECUTE_COMMAND",
+      command: setStylePresetCommand("cinematic"),
+    });
+
+    expect(state.sceneSpec.scene.overarching_prompt).toBe("A bright retro diner at sunrise");
+    expect(state.sceneSpec.scene.negative_prompt).toBe("blurry, low contrast");
+    expect(state.sceneSpec.scene.style_preset).toBe("cinematic");
+
+    state = sceneStoreReducer(state, { type: "UNDO" });
+    expect(state.sceneSpec.scene.style_preset).toBe("default");
+    state = sceneStoreReducer(state, { type: "UNDO" });
+    expect(state.sceneSpec.scene.negative_prompt).toBe("");
   });
 
   it("adds layers and objects through command actions", () => {

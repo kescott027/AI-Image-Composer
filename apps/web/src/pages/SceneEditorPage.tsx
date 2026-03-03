@@ -1,20 +1,28 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
 import { LayersPanel } from "../components/LayersPanel";
+import {
+  type OverarchingPromptEditorValues,
+  OverarchingPromptEditor,
+} from "../components/OverarchingPromptEditor";
 import { SceneCanvas } from "../components/SceneCanvas";
 import { ROUTES } from "../routes";
-import { addObjectCommand, moveObjectCommand, moveObjectZOrderCommand, rotateObjectCommand, scaleObjectCommand, setOverarchingPromptCommand } from "../state/commands";
+import {
+  addObjectCommand,
+  moveObjectCommand,
+  moveObjectZOrderCommand,
+  rotateObjectCommand,
+  scaleObjectCommand,
+  setNegativePromptCommand,
+  setOverarchingPromptCommand,
+  setStylePresetCommand,
+} from "../state/commands";
 import { SceneStoreProvider, useSceneStore } from "../state/sceneStore";
 
 function SceneEditorShell({ sceneId }: { sceneId: string }) {
-  const [promptDraft, setPromptDraft] = useState("");
   const [selectedObjectId, setSelectedObjectId] = useState<string | null>(null);
   const { sceneSpec, commandLog, canUndo, canRedo, executeCommand, undo, redo } = useSceneStore();
-
-  useEffect(() => {
-    setPromptDraft(sceneSpec.scene.overarching_prompt);
-  }, [sceneSpec.scene.overarching_prompt]);
 
   const objectLayer = useMemo(
     () => sceneSpec.layers.find((layer) => layer.type === "OBJECT"),
@@ -25,8 +33,16 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
     [sceneSpec.objects, selectedObjectId],
   );
 
-  const applyPrompt = () => {
-    executeCommand(setOverarchingPromptCommand(promptDraft));
+  const applyScenePrompt = (values: OverarchingPromptEditorValues) => {
+    if (values.overarchingPrompt !== sceneSpec.scene.overarching_prompt) {
+      executeCommand(setOverarchingPromptCommand(values.overarchingPrompt));
+    }
+    if (values.negativePrompt !== (sceneSpec.scene.negative_prompt ?? "")) {
+      executeCommand(setNegativePromptCommand(values.negativePrompt));
+    }
+    if (values.stylePreset !== (sceneSpec.scene.style_preset ?? "default")) {
+      executeCommand(setStylePresetCommand(values.stylePreset));
+    }
   };
 
   const addObject = () => {
@@ -96,19 +112,7 @@ function SceneEditorShell({ sceneId }: { sceneId: string }) {
         <aside className="panel panel-right">
           <h2>Right Panel</h2>
           <p>Prompt and command history</p>
-          <label className="field-label" htmlFor="prompt-draft">
-            Overarching Prompt
-          </label>
-          <textarea
-            id="prompt-draft"
-            className="prompt-input"
-            value={promptDraft}
-            onChange={(event) => setPromptDraft(event.target.value)}
-            placeholder="Describe the scene..."
-          />
-          <button type="button" className="button-link" onClick={applyPrompt}>
-            Apply Prompt Command
-          </button>
+          <OverarchingPromptEditor scene={sceneSpec.scene} onApply={applyScenePrompt} />
           <button
             type="button"
             className="button-link"

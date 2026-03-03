@@ -37,6 +37,28 @@ export function setOverarchingPromptCommand(prompt: string): SceneCommand {
   };
 }
 
+export function setNegativePromptCommand(negativePrompt: string): SceneCommand {
+  return {
+    name: "SET_NEGATIVE_PROMPT",
+    apply(sceneSpec) {
+      const next = cloneSceneSpec(sceneSpec);
+      next.scene.negative_prompt = negativePrompt;
+      return next;
+    },
+  };
+}
+
+export function setStylePresetCommand(stylePreset: string): SceneCommand {
+  return {
+    name: "SET_STYLE_PRESET",
+    apply(sceneSpec) {
+      const next = cloneSceneSpec(sceneSpec);
+      next.scene.style_preset = stylePreset;
+      return next;
+    },
+  };
+}
+
 export function addLayerCommand(
   name: string,
   type: "BACKGROUND" | "OBJECT" | "MASK" | "COMPOSITE" | "ZONE" = "OBJECT",
